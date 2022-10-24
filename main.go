@@ -15,12 +15,16 @@ var (
     Background(lipgloss.Color("#505059")).
     Foreground(lipgloss.Color("#ffffff"))
   bodyStyle = lipgloss.NewStyle().
-    Foreground(lipgloss.Color("#a0f0f0"))
+    Foreground(lipgloss.Color("#e030e0"))
   quitStyle = lipgloss.NewStyle().
-    Foreground(lipgloss.Color("#707070")).
+    Foreground(lipgloss.Color("#303030")).
     PaddingLeft(3)
   commandStyle = lipgloss.NewStyle().
-    Foreground(lipgloss.Color("#30b0e0"))
+    Foreground(lipgloss.Color("#30f0e0"))
+
+  borderStyle = lipgloss.NewStyle().
+    BorderStyle(lipgloss.NormalBorder()).
+    BorderForeground(lipgloss.Color("#f0f0f0"))
 
 )
 
@@ -38,7 +42,8 @@ func (m model) Init() tea.Cmd {
 }
 
 func getGPU(m model) (tea.Model, tea.Cmd){
-  c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1, p' | awk '{print $5, $6, $7}")
+  c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p' | awk '{print $5, $6, $7}'")
+  //c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\"")
   gpu_info, err := c.Output()
   if err != nil {
     fmt.Println("Error:", err)
@@ -127,15 +132,14 @@ func (m model) View() string {
   } else {
     renderString = "\n"
     switch {
-    case strings.Contains(m.command, "GB"):
-      renderString += bodyStyle.Render("\nRAM is: ") + commandStyle.Render(m.command) 
-    case strings.Contains(m.command, "Intel"):
-      renderString += bodyStyle.Render("\nCPU is: ") + commandStyle.Render(m.command)
-    case strings.Contains(m.command, "AMD"):
     case strings.Contains(m.command, "Radeon"):
       renderString += bodyStyle.Render("\nGPU is: ") + commandStyle.Render(m.command)
     case strings.Contains(m.command, "Nvidia"):
       renderString += bodyStyle.Render("\nGPU is: ") + commandStyle.Render(m.command)
+    case strings.Contains(m.command, "GB"):
+      renderString += bodyStyle.Render("\nRAM is: ") + commandStyle.Render(m.command) 
+    case strings.Contains(m.command, "Intel(R)"):
+      renderString += bodyStyle.Render("\nCPU is: ") + commandStyle.Render(m.command)
     }
     m.commandPresent = !m.commandPresent
   }
@@ -152,7 +156,7 @@ func (m model) View() string {
   if m.err != nil {
     return "Error: " + m.err.Error() + "\n"
   }
-  return renderString
+  return borderStyle.Render(renderString)
 
 }
 
