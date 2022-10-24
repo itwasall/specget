@@ -4,6 +4,7 @@ import (
   "fmt"
   "os"
   "os/exec"
+  "strings"
   tea "github.com/charmbracelet/bubbletea"
   "github.com/charmbracelet/lipgloss"
 
@@ -15,6 +16,9 @@ var (
     Foreground(lipgloss.Color("#ffffff"))
   bodyStyle = lipgloss.NewStyle().
     Foreground(lipgloss.Color("#a0f0f0"))
+  quitStyle = lipgloss.NewStyle().
+    Foreground(lipgloss.Color("#707070")).
+    PaddingLeft(3)
   commandStyle = lipgloss.NewStyle().
     Foreground(lipgloss.Color("#30b0e0"))
 
@@ -23,6 +27,7 @@ var (
 type model struct {
   altscreen bool
   command string
+  commandPresent bool
   err error 
 }
 
@@ -32,33 +37,47 @@ func (m model) Init() tea.Cmd {
   return nil
 }
 
-func getRAM(m model) tea.Cmd {
-  c := exec.Command("sysctl", "hw.memsize")
+func getGPU(m model) (tea.Model, tea.Cmd){
+  c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1, p' | awk '{print $5, $6, $7}")
+  gpu_info, err := c.Output()
+  if err != nil {
+    fmt.Println("Error:", err)
+    return m, nil
+  }
+
+  m.command = string(gpu_info[:])
+  return m, nil
+
+}
+
+func getRAM(m model) (tea.Model, tea.Cmd) {
+  //c := exec.Command("sysctl", "hw.memsize")
+  c := exec.Command("bash", "-c", "sysctl hw.memsize | awk '{print $2/1024/1024/1024 \"GB\"}'")
   // TODO
   // Implement command piping and implement awk filtering
   // awk := exec.Command("awk", "'{print $2/1024/1024/1024 \"GB\"}'")
   ram_info, err := c.Output()
   if err != nil {
     fmt.Println("Error:", err)
-    return nil
+    return m, nil
   }
-  fmt.Println(string(ram_info[:]))
-  return nil
+  m.command = (string(ram_info[:]))
+  return m, nil
 
 }
 
-func getCPU(m model) tea.Cmd {
+func getCPU(m model) (tea.Model, tea.Cmd) {
   c := exec.Command("sysctl", "-n", "machdep.cpu.brand_string")
   cpu_info, err := c.Output()
   if err != nil {
     fmt.Println("Error: ", err)
-    return nil
+    return m, nil
   }
-  fmt.Println(string(cpu_info[:]))
+  m.command = string(cpu_info[:])
   //return tea.ExecProcess(c, func(err error) tea.Msg {
   //  return commandFinishedMsg{err}
   //})
-  return nil
+  return m, nil
 }
 
 
@@ -70,9 +89,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       return m, tea.Quit
     case "d":
       tea.Println("")
-      return m, getCPU(m)
+      m.commandPresent = true
+      return getCPU(m)
     case "r":
-      return m, getRAM(m)
+      m.commandPresent = true
+      return getRAM(m)
+    case "g":
+      m.commandPresent = true
+      return getGPU(m)
     case "a":
       m.altscreen = !m.altscreen
       cmd := tea.EnterAltScreen
@@ -80,6 +104,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         cmd = tea.ExitAltScreen
       }
       return m, cmd
+    case "x":
+      return m, nil
     }
   case commandFinishedMsg:
     if msg.err != nil {
@@ -91,23 +117,47 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+  var renderString string
+  if !m.commandPresent {
+    renderString = titleStyle.Render("Please enter a command")
 
-  title := titleStyle.Render("Please enter a command")
-
-
-  bodyCPU := bodyStyle.Render("\n'd' for ") + commandStyle.Render("cpu")
-  bodyRAM := bodyStyle.Render("\n'r' for ") + commandStyle.Render("ram") 
-  bodyQuit := bodyStyle.Render("\n'q' to ") + commandStyle.Render("quit")
+    renderString += bodyStyle.Render("\n'd' for ") + commandStyle.Render("cpu")
+    renderString += bodyStyle.Render("\n'r' for ") + commandStyle.Render("ram") 
+    renderString += bodyStyle.Render("\n'g' for ") + commandStyle.Render("gpu") 
+  } else {
+    renderString = "\n"
+    switch {
+    case strings.Contains(m.command, "GB"):
+      renderString += bodyStyle.Render("\nRAM is: ") + commandStyle.Render(m.command) 
+    case strings.Contains(m.command, "Intel"):
+      renderString += bodyStyle.Render("\nCPU is: ") + commandStyle.Render(m.command)
+    case strings.Contains(m.command, "AMD"):
+    case strings.Contains(m.command, "Radeon"):
+      renderString += bodyStyle.Render("\nGPU is: ") + commandStyle.Render(m.command)
+    case strings.Contains(m.command, "Nvidia"):
+      renderString += bodyStyle.Render("\nGPU is: ") + commandStyle.Render(m.command)
+    }
+    m.commandPresent = !m.commandPresent
+  }
+  /*
+  if m.command.Contains("GB") {
+    m.commandPresent = !m.commandPresent
+  } else if m.command.Contains("Intel") {
+    renderString = "\n"
+    m.commandPresent = !m.command
+  }
+  */
+  renderString += quitStyle.Render("\n\n'q' to quit")
 
   if m.err != nil {
     return "Error: " + m.err.Error() + "\n"
   }
-  return title+bodyCPU+bodyRAM+bodyQuit+"\n"
+  return renderString
 
 }
 
 func main(){
-  m := model{}
+  m := model{commandPresent: false}
 
   if err:= tea.NewProgram(m).Start(); err != nil {
     fmt.Println("Error! ", err)
