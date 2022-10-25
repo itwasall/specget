@@ -4,7 +4,6 @@ import (
   "fmt"
   "os"
   "os/exec"
-  "strings"
   tea "github.com/charmbracelet/bubbletea"
   "github.com/charmbracelet/lipgloss"
 
@@ -15,16 +14,20 @@ var (
     Background(lipgloss.Color("#505059")).
     Foreground(lipgloss.Color("#ffffff"))
   bodyStyle = lipgloss.NewStyle().
-    Foreground(lipgloss.Color("#e030e0"))
+    Foreground(lipgloss.Color("#404040"))
   quitStyle = lipgloss.NewStyle().
-    Foreground(lipgloss.Color("#303030")).
-    PaddingLeft(3)
+    Foreground(lipgloss.Color("#a0a0a0")).
+    PaddingLeft(3).
+    PaddingRight(3)
   commandStyle = lipgloss.NewStyle().
-    Foreground(lipgloss.Color("#30f0e0"))
+    Foreground(lipgloss.Color("#0030f0"))
 
   borderStyle = lipgloss.NewStyle().
     BorderStyle(lipgloss.NormalBorder()).
-    BorderForeground(lipgloss.Color("#f0f0f0"))
+    BorderForeground(lipgloss.Color("#000000")).
+    PaddingLeft(3).
+    PaddingRight(3)
+
 
 )
 
@@ -32,6 +35,7 @@ type model struct {
   altscreen bool
   command string
   commandPresent bool
+  commandType string
   err error 
 }
 
@@ -41,8 +45,31 @@ func (m model) Init() tea.Cmd {
   return nil
 }
 
+func getHDD(m model) (tea.Model, tea.Cmd){
+  c1 := exec.Command("bash", "-c", "diskutil info /dev/disk0 | grep \"Disk Size\" | awk '{print $3, $4, $5, $6}'")
+  c2 := exec.Command("bash", "-c", "diskutil info /dev/disk1 | grep \"Disk Size\" | awk '{print $3, $4, $5, $6}'")
+  c3 := exec.Command("bash", "-c", "diskutil info /dev/disk2 | grep \"Disk Size\" | awk '{print $3, $4, $5, $6}'")
+
+  hdd_info, err := c1.Output()
+  if err != nil {
+    fmt.Println("Error!", err)
+  }
+  hdd_info2, err := c2.Output()
+  if err != nil {
+    fmt.Println("Error!", err)
+  }
+  hdd_info3, err := c3.Output()
+  if err != nil {
+    fmt.Println("Error!", err)
+  }
+
+  m.command = bodyStyle.Render("\n/dev/disk0: ") + commandStyle.Render(string(hdd_info[:])) + bodyStyle.Render("\n/dev/disk1: ")+ commandStyle.Render(string(hdd_info2[:])) + bodyStyle.Render("\n/dev/disk2: ") + commandStyle.Render(string(hdd_info3[:]))
+  m.commandType = "HDD"
+  return m, nil
+}
+
 func getGPU(m model) (tea.Model, tea.Cmd){
-  c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p' | awk '{print $5, $6, $7}'")
+  c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p' | awk '{print $5, $6, $7, $8}'")
   //c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\"")
   gpu_info, err := c.Output()
   if err != nil {
@@ -51,6 +78,7 @@ func getGPU(m model) (tea.Model, tea.Cmd){
   }
 
   m.command = string(gpu_info[:])
+  m.commandType = "GPU"
   return m, nil
 
 }
@@ -67,6 +95,7 @@ func getRAM(m model) (tea.Model, tea.Cmd) {
     return m, nil
   }
   m.command = (string(ram_info[:]))
+  m.commandType = "RAM"
   return m, nil
 
 }
@@ -79,6 +108,7 @@ func getCPU(m model) (tea.Model, tea.Cmd) {
     return m, nil
   }
   m.command = string(cpu_info[:])
+  m.commandType = "CPU"
   //return tea.ExecProcess(c, func(err error) tea.Msg {
   //  return commandFinishedMsg{err}
   //})
@@ -92,8 +122,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg.String(){
     case "q":
       return m, tea.Quit
-    case "d":
-      tea.Println("")
+    case "h":
+      m.commandPresent = true
+      return getHDD(m)
+    case "c":
       m.commandPresent = true
       return getCPU(m)
     case "r":
@@ -126,22 +158,26 @@ func (m model) View() string {
   if !m.commandPresent {
     renderString = titleStyle.Render("Please enter a command")
 
-    renderString += bodyStyle.Render("\n'd' for ") + commandStyle.Render("cpu")
-    renderString += bodyStyle.Render("\n'r' for ") + commandStyle.Render("ram") 
-    renderString += bodyStyle.Render("\n'g' for ") + commandStyle.Render("gpu") 
+    renderString += "\n" + bodyStyle.Render("'c' for ") + commandStyle.Render("cpu")
+    renderString += "\n" + bodyStyle.Render("'r' for ") + commandStyle.Render("ram") 
+    renderString += "\n" + bodyStyle.Render("'g' for ") + commandStyle.Render("gpu") 
+    renderString += "\n" + quitStyle.Render("'q' to quit")
   } else {
     renderString = "\n"
-    switch {
-    case strings.Contains(m.command, "Radeon"):
-      renderString += bodyStyle.Render("\nGPU is: ") + commandStyle.Render(m.command)
-    case strings.Contains(m.command, "Nvidia"):
-      renderString += bodyStyle.Render("\nGPU is: ") + commandStyle.Render(m.command)
-    case strings.Contains(m.command, "GB"):
-      renderString += bodyStyle.Render("\nRAM is: ") + commandStyle.Render(m.command) 
-    case strings.Contains(m.command, "Intel(R)"):
-      renderString += bodyStyle.Render("\nCPU is: ") + commandStyle.Render(m.command)
+    switch m.commandType {
+    case "GPU":
+      renderString += bodyStyle.Render("GPU is: ") + commandStyle.Render(m.command)
+    case "RAM":
+      renderString += bodyStyle.Render("RAM is: ") + commandStyle.Render(m.command)
+    case "CPU":
+      renderString += bodyStyle.Render("CPU is: ") + commandStyle.Render(m.command)
+    case "HDD":
+      renderString += bodyStyle.Render("Disk Size is: ") + commandStyle.Render(m.command)
+    default:
+      renderString += bodyStyle.Render("Fucking uhhhhhh") + commandStyle.Render("Idk B")
     }
     m.commandPresent = !m.commandPresent
+    renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [q]uit")
   }
   /*
   if m.command.Contains("GB") {
@@ -151,7 +187,6 @@ func (m model) View() string {
     m.commandPresent = !m.command
   }
   */
-  renderString += quitStyle.Render("\n\n'q' to quit")
 
   if m.err != nil {
     return "Error: " + m.err.Error() + "\n"
