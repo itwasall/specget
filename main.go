@@ -20,7 +20,7 @@ var (
     PaddingLeft(3).
     PaddingRight(3)
   commandStyle = lipgloss.NewStyle().
-    Foreground(lipgloss.Color("#0030f0"))
+    Foreground(lipgloss.Color("#0050c0"))
 
   borderStyle = lipgloss.NewStyle().
     BorderStyle(lipgloss.NormalBorder()).
