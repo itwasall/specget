@@ -4,6 +4,7 @@ import (
   "fmt"
   "os"
   "os/exec"
+  "strings"
   tea "github.com/charmbracelet/bubbletea"
   "github.com/charmbracelet/lipgloss"
 
@@ -46,15 +47,17 @@ func (m model) Init() tea.Cmd {
 }
 
 func getHDD(m model) (tea.Model, tea.Cmd){
+  c_fusion_test := exec.Command("bash", "-c", "diskutil info /dev/disk2")
   c1 := exec.Command("bash", "-c", "diskutil info /dev/disk0 | grep \"Disk Size\" | awk '{print $3, $4, $5, $6}'")
-  c2 := exec.Command("bash", "-c", "diskutil info /dev/disk1 | grep \"Disk Size\" | awk '{print $3, $4, $5, $6}'")
   c3 := exec.Command("bash", "-c", "diskutil info /dev/disk2 | grep \"Disk Size\" | awk '{print $3, $4, $5, $6}'")
 
-  hdd_info, err := c1.Output()
+  
+  fusion_info_bytes, err := c_fusion_test.Output()
   if err != nil {
-    fmt.Println("Error!", err)
+    fmt.Println("Error! ", err)
   }
-  hdd_info2, err := c2.Output()
+
+  hdd_info, err := c1.Output()
   if err != nil {
     fmt.Println("Error!", err)
   }
@@ -63,7 +66,16 @@ func getHDD(m model) (tea.Model, tea.Cmd){
     fmt.Println("Error!", err)
   }
 
-  m.command = bodyStyle.Render("\n/dev/disk0: ") + commandStyle.Render(string(hdd_info[:])) + bodyStyle.Render("\n/dev/disk1: ")+ commandStyle.Render(string(hdd_info2[:])) + bodyStyle.Render("\n/dev/disk2: ") + commandStyle.Render(string(hdd_info3[:]))
+  // If a drive is a fusion drive then diskutil info /dev/disk2 should mention as much
+  //   disk2 bc disk0 + disk1 would be the two physical drives comprising of the fusion drive
+  fusion_info_string := string(fusion_info_bytes[:])
+  if strings.Contains(fusion_info_string, "Fusion Drive"){
+    m.command = bodyStyle.Render("\nDEVICE IS USING FUSION DRIVE\n/dev/disk2: ") + commandStyle.Render(string(hdd_info3[:]))
+  } else {
+    m.command = bodyStyle.Render("\n/dev/disk0: ") + commandStyle.Render(string(hdd_info[:]))
+  }
+
+  // m.command = bodyStyle.Render("\n/dev/disk0: ") + commandStyle.Render(string(hdd_info[:])) + bodyStyle.Render("\n/dev/disk1: ")+ commandStyle.Render(string(hdd_info2[:])) + bodyStyle.Render("\n/dev/disk2: ") + commandStyle.Render(string(hdd_info3[:]))
   m.commandType = "HDD"
   return m, nil
 }
