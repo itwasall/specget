@@ -161,6 +161,7 @@ func (m model) View() string {
     renderString += "\n" + bodyStyle.Render("'c' for ") + commandStyle.Render("cpu")
     renderString += "\n" + bodyStyle.Render("'r' for ") + commandStyle.Render("ram") 
     renderString += "\n" + bodyStyle.Render("'g' for ") + commandStyle.Render("gpu") 
+    renderString += "\n" + bodyStyle.Render("'h' for ") + commandStyle.Render("hdd")
     renderString += "\n" + quitStyle.Render("'q' to quit")
   } else {
     renderString = "\n"
@@ -174,10 +175,10 @@ func (m model) View() string {
     case "HDD":
       renderString += bodyStyle.Render("Disk Size is: ") + commandStyle.Render(m.command)
     default:
-      renderString += bodyStyle.Render("Fucking uhhhhhh") + commandStyle.Render("Idk B")
+      renderString += bodyStyle.Render("Fucking uhhhhhh") + commandStyle.Render(" Idk B")
     }
     m.commandPresent = !m.commandPresent
-    renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [q]uit")
+    renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [h]dd | [q]uit")
   }
   /*
   if m.command.Contains("GB") {
