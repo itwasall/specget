@@ -14,6 +14,10 @@ var (
   titleStyle = lipgloss.NewStyle().
     Background(lipgloss.Color("#505059")).
     Foreground(lipgloss.Color("#ffffff"))
+  titleStyle2= lipgloss.NewStyle().
+    Background(lipgloss.Color("#505059")).
+    Foreground(lipgloss.Color("#ffffff")).
+    PaddingLeft(2)
   bodyStyle = lipgloss.NewStyle().
     Foreground(lipgloss.Color("#404040"))
   quitStyle = lipgloss.NewStyle().
@@ -166,7 +170,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-  var renderString string
+  var renderString, titleString string
+  titleString = titleStyle2.Render("This is Niall's shitty hardware detection tool. No support given") + "\n"
   if !m.commandPresent {
     renderString = titleStyle.Render("Please enter a command")
 
@@ -204,7 +209,7 @@ func (m model) View() string {
   if m.err != nil {
     return "Error: " + m.err.Error() + "\n"
   }
-  return borderStyle.Render(renderString)
+  return titleString + borderStyle.Render(renderString)
 
 }
 
