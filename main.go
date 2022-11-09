@@ -20,6 +20,10 @@ var (
     PaddingLeft(2)
   bodyStyle = lipgloss.NewStyle().
     Foreground(lipgloss.Color("#404040"))
+  warningStyle = lipgloss.NewStyle().
+    Background(lipgloss.Color("#ffffff")).
+    Foreground(lipgloss.Color("#a03000"))
+  
   quitStyle = lipgloss.NewStyle().
     Foreground(lipgloss.Color("#a0a0a0")).
     PaddingLeft(3).
@@ -131,6 +135,13 @@ func getCPU(m model) (tea.Model, tea.Cmd) {
   return m, nil
 }
 
+func installOS(m model) (tea.Model, tea.Cmd){
+  m.command = warningStyle.Render("This action must complete before anything else is done. Are you sure? (Y/N)")
+  m.commandType = "OS"
+
+  return m, nil
+}
+
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   switch msg := msg.(type){
@@ -138,6 +149,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg.String(){
     case "q":
       return m, tea.Quit
+    case "o":
+      m.commandPresent = true
+      return(installOS(m))
+
     case "h":
       m.commandPresent = true
       return getHDD(m)
@@ -171,6 +186,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
   var renderString, titleString string
+  var displayOptions bool
+  displayOptions = true
   titleString = titleStyle2.Render("This is Niall's shitty hardware detection tool. No support given") + "\n"
   if !m.commandPresent {
     renderString = titleStyle.Render("Please enter a command")
@@ -191,11 +208,17 @@ func (m model) View() string {
       renderString += bodyStyle.Render("CPU is: ") + commandStyle.Render(m.command)
     case "HDD":
       renderString += bodyStyle.Render("Disk Size is: ") + commandStyle.Render(m.command)
+    case "OS":
+      renderString += m.command + "\n\n"
+      displayOptions = false
+
     default:
       renderString += bodyStyle.Render("Fucking uhhhhhh") + commandStyle.Render(" Idk B")
     }
     m.commandPresent = !m.commandPresent
-    renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [h]dd | [q]uit")
+    if displayOptions {
+      renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [h]dd | [q]uit")
+    }
   }
   /*
   if m.command.Contains("GB") {
