@@ -14,7 +14,7 @@ var (
   titleStyle = lipgloss.NewStyle().
     Background(lipgloss.Color("#505059")).
     Foreground(lipgloss.Color("#ffffff"))
-  titleStyle2= lipgloss.NewStyle().
+  disclaimerStyle= lipgloss.NewStyle().
     Background(lipgloss.Color("#505059")).
     Foreground(lipgloss.Color("#ffffff")).
     PaddingLeft(2)
@@ -46,6 +46,7 @@ type model struct {
   commandPresent bool
   commandType string
   err error 
+  disclaimerShow bool
 }
 
 type commandFinishedMsg struct { err error }
@@ -55,34 +56,36 @@ func (m model) Init() tea.Cmd {
 }
 
 func getHDD(m model) (tea.Model, tea.Cmd){
-  c_fusion_test := exec.Command("bash", "-c", "diskutil info /dev/disk2")
-  c1 := exec.Command("bash", "-c", "diskutil info /dev/disk0 | grep \"Disk Size\" | awk '{print $3, $4, $5, $6}'")
-  c3 := exec.Command("bash", "-c", "diskutil info /dev/disk2 | grep \"Disk Size\" | awk '{print $3, $4, $5, $6}'")
+  hdd_fusion_check := exec.Command("bash", "-c", "diskutil info /dev/disk2")
+  // dev/disk0 being the default drive macOS is installed on
+  hdd_disk0 := exec.Command("bash", "-c", "diskutil info /dev/disk0 | grep \"Disk Size\" | awk '{print $3, $4, $5, $6}'")
+  // dev/disk2 being the default assignment a fusion drive gets. (Comprising of a disk0 SSD and a disk1 HDD for example)
+  hdd_disk2 := exec.Command("bash", "-c", "diskutil info /dev/disk2 | grep \"Disk Size\" | awk '{print $3, $4, $5, $6}'")
 
-  
-  fusion_info_bytes, err := c_fusion_test.Output()
+  // Boring Go error handling
+  fusion_info_bytes, err := hdd_fusion_check.Output()
   if err != nil {
     fmt.Println("Error! ", err)
   }
-
-  hdd_info, err := c1.Output()
+  hdd_info, err := hdd_disk0.Output()
   if err != nil {
     fmt.Println("Error!", err)
   }
-  hdd_info3, err := c3.Output()
+  hdd_info2, err := hdd_disk2.Output()
   if err != nil {
     fmt.Println("Error!", err)
   }
 
-  // If a drive is a fusion drive then diskutil info /dev/disk2 should mention as much
-  //   disk2 bc disk0 + disk1 would be the two physical drives comprising of the fusion drive
+  // If "Fusion Drive" is found in the output of hdd_fusion_check, then print the disk size of /dev/disk2 (the default allocation
+  //  of a fusion drive), otherwise print the disk size of /dev/disk0
   fusion_info_string := string(fusion_info_bytes[:])
   if strings.Contains(fusion_info_string, "Fusion Drive"){
-    m.command = bodyStyle.Render("\nDEVICE IS USING FUSION DRIVE\n/dev/disk2: ") + commandStyle.Render(string(hdd_info3[:]))
+    m.command = bodyStyle.Render("\nDEVICE IS USING FUSION DRIVE\n/dev/disk2: ") + commandStyle.Render(string(hdd_info2[:]))
   } else {
-    m.command = bodyStyle.Render("\n/dev/disk0: ") + commandStyle.Render(string(hdd_info[:]))
+    m.command = bodyStyle.Render("   /dev/disk0: ") + commandStyle.Render(string(hdd_info[:]))
   }
 
+  // **IGNORE**
   // m.command = bodyStyle.Render("\n/dev/disk0: ") + commandStyle.Render(string(hdd_info[:])) + bodyStyle.Render("\n/dev/disk1: ")+ commandStyle.Render(string(hdd_info2[:])) + bodyStyle.Render("\n/dev/disk2: ") + commandStyle.Render(string(hdd_info3[:]))
   m.commandType = "HDD"
   return m, nil
@@ -90,8 +93,9 @@ func getHDD(m model) (tea.Model, tea.Cmd){
 
 func getGPU(m model) (tea.Model, tea.Cmd){
   c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p' | awk '{print $5, $6, $7, $8}'")
-  //c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\"")
   gpu_info, err := c.Output()
+
+  // Boring Go error handling
   if err != nil {
     fmt.Println("Error:", err)
     return m, nil
@@ -104,16 +108,15 @@ func getGPU(m model) (tea.Model, tea.Cmd){
 }
 
 func getRAM(m model) (tea.Model, tea.Cmd) {
-  //c := exec.Command("sysctl", "hw.memsize")
   c := exec.Command("bash", "-c", "sysctl hw.memsize | awk '{print $2/1024/1024/1024 \"GB\"}'")
-  // TODO
-  // Implement command piping and implement awk filtering
-  // awk := exec.Command("awk", "'{print $2/1024/1024/1024 \"GB\"}'")
   ram_info, err := c.Output()
+
+  // Boring Go error handling
   if err != nil {
     fmt.Println("Error:", err)
     return m, nil
   }
+
   m.command = (string(ram_info[:]))
   m.commandType = "RAM"
   return m, nil
@@ -123,22 +126,37 @@ func getRAM(m model) (tea.Model, tea.Cmd) {
 func getCPU(m model) (tea.Model, tea.Cmd) {
   c := exec.Command("sysctl", "-n", "machdep.cpu.brand_string")
   cpu_info, err := c.Output()
+
+  // Boring Go error handling
   if err != nil {
     fmt.Println("Error: ", err)
     return m, nil
   }
+
   m.command = string(cpu_info[:])
   m.commandType = "CPU"
-  //return tea.ExecProcess(c, func(err error) tea.Msg {
-  //  return commandFinishedMsg{err}
-  //})
   return m, nil
 }
 
 func installOS(m model) (tea.Model, tea.Cmd){
-  m.command = warningStyle.Render("This action must complete before anything else is done. Are you sure? (Y/N)")
+  m.command = warningStyle.Render("This action must be allowed to complete in it's entirety before anything else is done. Are you sure? (Y/N)")
   m.commandType = "OS"
 
+  return m, nil
+}
+
+func getWifi(m model) (tea.Model, tea.Cmd) {
+  c := exec.Command("/usr/libexec/airportd", "alloc", "--ssid", "Geoff", "--security", "wpa2", "--password", "digital1")
+  wifi_info, err := c.Output()
+
+  // Boring Go error handling
+  if err != nil {
+    fmt.Println("Error: ", err)
+    return m, nil
+  }
+
+  m.command = string(wifi_info[:])
+  m.commandType = "WIFI"
   return m, nil
 }
 
@@ -151,21 +169,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       return m, tea.Quit
     case "o":
       m.commandPresent = true
+      m.disclaimerShow = false
       return(installOS(m))
 
     case "h":
       m.commandPresent = true
+      m.disclaimerShow = false
       return getHDD(m)
     case "c":
       m.commandPresent = true
+      m.disclaimerShow = false
       return getCPU(m)
     case "r":
       m.commandPresent = true
+      m.disclaimerShow = false
       return getRAM(m)
     case "g":
       m.commandPresent = true
+      m.disclaimerShow = false
       return getGPU(m)
+    case "w":
+      m.commandPresent = true
+      m.disclaimerShow = false
+      return getWifi(m)
     case "a":
+      m.disclaimerShow = false
       m.altscreen = !m.altscreen
       cmd := tea.EnterAltScreen
       if !m.altscreen{
@@ -173,6 +201,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       }
       return m, cmd
     case "x":
+      m.disclaimerShow = false
       return m, nil
     }
   case commandFinishedMsg:
@@ -188,14 +217,19 @@ func (m model) View() string {
   var renderString, titleString string
   var displayOptions bool
   displayOptions = true
-  titleString = titleStyle2.Render("This is Niall's shitty hardware detection tool. No support given") + "\n"
+  renderString = ""
+  titleString = ""
+  if m.disclaimerShow {
+    titleString += disclaimerStyle.Render("This is Niall's shitty hardware detection tool. No support given") + "\n"
+  }
   if !m.commandPresent {
-    renderString = titleStyle.Render("Please enter a command")
+    renderString += titleStyle.Render("Please enter a command")
 
     renderString += "\n" + bodyStyle.Render("'c' for ") + commandStyle.Render("cpu")
     renderString += "\n" + bodyStyle.Render("'r' for ") + commandStyle.Render("ram") 
     renderString += "\n" + bodyStyle.Render("'g' for ") + commandStyle.Render("gpu") 
     renderString += "\n" + bodyStyle.Render("'h' for ") + commandStyle.Render("hdd")
+    renderString += "\n" + bodyStyle.Render("'w' for ") + commandStyle.Render("wifi")
     renderString += "\n" + quitStyle.Render("'q' to quit")
   } else {
     renderString = "\n"
@@ -207,9 +241,12 @@ func (m model) View() string {
     case "CPU":
       renderString += bodyStyle.Render("CPU is: ") + commandStyle.Render(m.command)
     case "HDD":
-      renderString += bodyStyle.Render("Disk Size is: ") + commandStyle.Render(m.command)
+      renderString += bodyStyle.Render("Disk Size: ") + commandStyle.Render(m.command)
     case "OS":
       renderString += m.command + "\n\n"
+      displayOptions = false
+    case "WIFI":
+      renderString += bodyStyle.Render("If wifi card was detected, you should now be connected!")
       displayOptions = false
 
     default:
@@ -232,12 +269,14 @@ func (m model) View() string {
   if m.err != nil {
     return "Error: " + m.err.Error() + "\n"
   }
-  return titleString + borderStyle.Render(renderString)
+  outputString := titleString + borderStyle.Render(renderString)
+  titleString, renderString = "", ""
+  return outputString
 
 }
 
 func main(){
-  m := model{commandPresent: false}
+  m := model{commandPresent: false, disclaimerShow: true}
 
   if err:= tea.NewProgram(m).Start(); err != nil {
     fmt.Println("Error! ", err)
