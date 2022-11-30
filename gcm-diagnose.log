@@ -1,0 +1,146 @@
+﻿Diagnose log at 2022-11-30T09:47:06Z
+
+AppPath: /usr/local/bin/git-credential-manager
+InstallDir: /usr/local/share/gcm-core
+Version: 2.0.877+c7c35983b8
+
+------------
+Diagnostic: Environment
+Skipped: False
+Success: True
+Exception: None
+Log:
+OSType: macOS
+OSVersion: 12.4
+Reading environment variables... OK
+ Variables:
+LANG=en_GB.UTF-8
+TERM_SESSION_ID=w0t0p0:66AE4811-02C4-4098-AF23-A00387AA9C01
+COMMAND_MODE=unix2003
+PATH=/Library/Frameworks/Python.framework/Versions/3.11/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/go/bin
+TERM_PROGRAM=iTerm.app
+XPC_SERVICE_NAME=0
+COLORTERM=truecolor
+COLORFGBG=7;0
+LC_TERMINAL=iTerm2
+SHELL=/bin/zsh
+XPC_FLAGS=0x0
+SSH_AUTH_SOCK=/private/tmp/com.apple.launchd.30ldXMEvrs/Listeners
+LC_TERMINAL_VERSION=3.4.16
+ITERM_SESSION_ID=w0t0p0:66AE4811-02C4-4098-AF23-A00387AA9C01
+TERM=xterm-256color
+__CFBundleIdentifier=com.googlecode.iterm2
+USER=mezmac
+TERM_PROGRAM_VERSION=3.4.16
+_=/usr/local/bin/git-credential-manager
+SHLVL=1
+TMPDIR=/var/folders/6p/d22_5llj09z4441389tz0fc80000gn/T/
+HOME=/Users/mezmac
+__CF_USER_TEXT_ENCODING=0x1F5:0:2
+PWD=/Users/mezmac/Documents/nothing/hwinfo
+LOGNAME=mezmac
+ITERM_PROFILE=Default
+OLDPWD=/Users/mezmac
+
+
+------------
+Diagnostic: File system
+Skipped: False
+Success: True
+Exception: None
+Log:
+Temporary directory is '/var/folders/6p/d22_5llj09z4441389tz0fc80000gn/T/'...
+Checking basic file I/O...
+Writing to temporary file '/var/folders/6p/d22_5llj09z4441389tz0fc80000gn/T/2854446b86dc326af0ef04b8'... OK
+Reading from temporary file '/var/folders/6p/d22_5llj09z4441389tz0fc80000gn/T/2854446b86dc326af0ef04b8'... OK
+Deleting temporary file '/var/folders/6p/d22_5llj09z4441389tz0fc80000gn/T/2854446b86dc326af0ef04b8'... OK
+Testing IFileSystem instance...
+UserHomePath: /Users/mezmac
+UserDataDirectoryPath: /Users/mezmac/.gcm
+GetCurrentDirectory(): /Users/mezmac/Documents/nothing/hwinfo
+
+------------
+Diagnostic: Networking
+Skipped: False
+Success: True
+Exception: None
+Log:
+Checking networking and HTTP stack...
+Creating HTTP client... OK
+IsNetworkAvailable: True
+Sending HEAD request to http://example.com... OK
+Sending HEAD request to https://example.com... OK
+Acquiring free TCP port... OK
+Testing local HTTP loopback connections...
+Creating new HTTP listener for http://localhost:50028/... OK
+Waiting for loopback connection... OK
+Writing response... OK
+Waiting for response data... OK
+Loopback connection data OK
+
+------------
+Diagnostic: Git
+Skipped: False
+Success: True
+Exception: None
+Log:
+Getting Git version... OK
+Git version is '2.37.0 (Apple Git-136)'
+Locating current repository... OK
+Git repository at '/Users/mezmac/Documents/nothing/hwinfo/.git'
+Listing all Git configuration... OK
+Git configuration:
+file:/Library/Developer/CommandLineTools/usr/share/git-core/gitconfig	credential.helper=osxkeychain
+file:/Library/Developer/CommandLineTools/usr/share/git-core/gitconfig	init.defaultbranch=main
+file:/Users/mezmac/.gitconfig	credential.helper=
+file:/Users/mezmac/.gitconfig	credential.helper=/usr/local/share/gcm-core/git-credential-manager
+file:/Users/mezmac/.gitconfig	credential.https://dev.azure.com.usehttppath=true
+file:.git/config	core.repositoryformatversion=0
+file:.git/config	core.filemode=true
+file:.git/config	core.bare=false
+file:.git/config	core.logallrefupdates=true
+file:.git/config	core.ignorecase=true
+file:.git/config	core.precomposeunicode=true
+file:.git/config	remote.origin.url=https://github.com/refrshrs/hwinfo.git
+file:.git/config	remote.origin.fetch=+refs/heads/*:refs/remotes/origin/*
+file:.git/config	branch.main.remote=origin
+file:.git/config	branch.main.merge=refs/heads/main
+
+
+------------
+Diagnostic: Credential storage
+Skipped: False
+Success: True
+Exception: None
+Log:
+ICredentialStore instance is of type: CredentialStore
+Writing test credential... OK
+Reading test credential... OK
+Deleting test credential... OK
+
+------------
+Diagnostic: Microsoft authentication (AAD/MSA)
+Skipped: False
+Success: True
+Exception: None
+Log:
+Broker not supported.
+Flow type is: Auto
+Gathering MSAL token cache data... OK
+CacheDirectory: /Users/mezmac/.local/.IdentityService
+CacheFileName: msal.cache
+CacheFilePath: /Users/mezmac/.local/.IdentityService/msal.cache
+MacKeyChainAccountName: MSALCache
+MacKeyChainServiceName: Microsoft.Developer.IdentityService
+Creating cache helper... OK
+Verifying MSAL token cache persistence... OK
+
+------------
+Diagnostic: GitHub API
+Skipped: False
+Success: True
+Exception: None
+Log:
+Using 'https://github.com/' as API target.
+Querying '/meta' endpoint... OK
+

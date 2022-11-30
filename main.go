@@ -7,7 +7,6 @@ import (
   "strings"
   tea "github.com/charmbracelet/bubbletea"
   "github.com/charmbracelet/lipgloss"
-
 )
 
 var (
@@ -146,7 +145,7 @@ func installOS(m model) (tea.Model, tea.Cmd){
 }
 
 func getWifi(m model) (tea.Model, tea.Cmd) {
-  c := exec.Command("/usr/libexec/airportd", "alloc", "--ssid", "Geoff", "--security", "wpa2", "--password", "digital1")
+  c := exec.Command("/usr/libexec/airportd", "en1", "alloc", "--ssid", "Geoff", "--security", "wpa2", "--password", "digital1")
   wifi_info, err := c.Output()
 
   // Boring Go error handling
@@ -160,6 +159,21 @@ func getWifi(m model) (tea.Model, tea.Cmd) {
   return m, nil
 }
 
+func pingTest(m model) (tea.Model, tea.Cmd){
+  c := exec.Command("ping", "-c", "1", "www.google.com")
+  ping_test, err := c.Output()
+
+  // Boring Go error handling
+  if err != nil {
+    fmt.Println("Error: ", err)
+    return m, nil
+  }
+
+  m.command = string(ping_test[:])
+  m.commandType = "PING"
+
+  return m, nil
+}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   switch msg := msg.(type){
@@ -192,6 +206,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       m.commandPresent = true
       m.disclaimerShow = false
       return getWifi(m)
+    case "p":
+      m.commandPresent = true
+      m.disclaimerShow = false
+      return pingTest(m)
     case "a":
       m.disclaimerShow = false
       m.altscreen = !m.altscreen
@@ -245,6 +263,8 @@ func (m model) View() string {
     case "OS":
       renderString += m.command + "\n\n"
       displayOptions = false
+    case "PING":
+      renderString += bodyStyle.Render("Ping results: \n") + commandStyle.Render(m.command)
     case "WIFI":
       renderString += bodyStyle.Render("If wifi card was detected, you should now be connected!")
       displayOptions = false
