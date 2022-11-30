@@ -175,6 +175,36 @@ func pingTest(m model) (tea.Model, tea.Cmd){
   return m, nil
 }
 
+func formatDrive(m model, fs string) (tea.Model, tea.Cmd) {
+  if fs == "APFS" { 
+    c := exec.Command("bash", "-c", "diskutil erasedisk APFS \"Macintosh HD\" /dev/disk0")
+    m.command = "APFS"
+    err := c.Run()
+    if err != nil {
+      fmt.Println("Error: ", err)
+      return m, nil
+    }
+  } else if fs == "JHFS+" {
+    c := exec.Command("bash", "-c", "diskutil erasedisk JHFS+ \"Macintosh HD\" /dev/disk0")
+    m.command = "JHFS+"
+    err := c.Run()
+    if err != nil {
+      fmt.Println("Error: ", err)
+      return m, nil
+    }
+  } else {
+    c := exec.Command("bash", "-c", "diskutil resetfusion")
+    m.command = "FUSION"
+    err := c.Run()
+    if err != nil {
+      fmt.Println("Error: ", err)
+      return m, nil
+    }
+  }
+  m.commandType = "FORMAT"
+  return m, nil
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   switch msg := msg.(type){
   case tea.KeyMsg:
@@ -210,6 +240,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       m.commandPresent = true
       m.disclaimerShow = false
       return pingTest(m)
+    case "1":
+      m.commandPresent = true
+      m.disclaimerShow = false
+      return formatDrive(m, "APFS")
+    case "2":
+      m.commandPresent = true
+      m.disclaimerShow = false
+      return formatDrive(m, "JHFS+")
+    case "3":
+      m.commandPresent = true
+      m.disclaimerShow = false
+      return formatDrive(m, "Fusion")
     case "a":
       m.disclaimerShow = false
       m.altscreen = !m.altscreen
@@ -265,6 +307,8 @@ func (m model) View() string {
       displayOptions = false
     case "PING":
       renderString += bodyStyle.Render("Ping results: \n") + commandStyle.Render(m.command)
+    case "FORMAT":
+      renderString += bodyStyle.Render("Formatted drive: ") + commandStyle.Render(m.command)
     case "WIFI":
       renderString += bodyStyle.Render("If wifi card was detected, you should now be connected!")
       displayOptions = false
