@@ -91,8 +91,8 @@ func getHDD(m model) (tea.Model, tea.Cmd){
 }
 
 func getGPU(m model) (tea.Model, tea.Cmd){
-  c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p' | awk '{print $5, $6, $7, $8}'")
-  gpu_info, err := c.Output()
+  c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p'")
+  gpu_info, err := c.Output() 
 
   // Boring Go error handling
   if err != nil {
@@ -100,7 +100,7 @@ func getGPU(m model) (tea.Model, tea.Cmd){
     return m, nil
   }
 
-  m.command = string(gpu_info[:])
+  m.command = string(gpu_info[:]) 
   m.commandType = "GPU"
   return m, nil
 
@@ -193,8 +193,10 @@ func formatDrive(m model, fs string) (tea.Model, tea.Cmd) {
       return m, nil
     }
   } else {
-    c := exec.Command("bash", "-c", "diskutil resetfusion")
+    c := exec.Command("diskutil", "resetfusion")
     m.command = "FUSION"
+    c.Stdout = os.Stdout
+    c.Stderr = os.Stderr
     err := c.Run()
     if err != nil {
       fmt.Println("Error: ", err)
@@ -252,6 +254,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       m.commandPresent = true
       m.disclaimerShow = false
       return formatDrive(m, "Fusion")
+    case "t":
+      m.commandPresent = true
+      m.disclaimerShow = false
+      m.commandType = "TEST"
+      return m, nil
     case "a":
       m.disclaimerShow = false
       m.altscreen = !m.altscreen
@@ -289,13 +296,20 @@ func (m model) View() string {
     renderString += "\n" + bodyStyle.Render("'r' for ") + commandStyle.Render("ram") 
     renderString += "\n" + bodyStyle.Render("'g' for ") + commandStyle.Render("gpu") 
     renderString += "\n" + bodyStyle.Render("'h' for ") + commandStyle.Render("hdd")
-    renderString += "\n" + bodyStyle.Render("'w' for ") + commandStyle.Render("wifi")
+    renderString += "\n" + bodyStyle.Render("'w' for ") + commandStyle.Render("wifi ") + warningStyle.Render("BROKEN")
+    renderString += "\n" + bodyStyle.Render("'o' for ") + commandStyle.Render("os install ") + warningStyle.Render("NOT IMPLEMENTED")
+    renderString += "\n" + bodyStyle.Render("'p' for ") + commandStyle.Render("ping test")
+    renderString += "\n" + bodyStyle.Render("'1' for ") + commandStyle.Render("APFS Format")
+    renderString += "\n" + bodyStyle.Render("'2' for ") + commandStyle.Render("JHFS+ Format")
+    renderString += "\n" + bodyStyle.Render("'3' for ") + commandStyle.Render("Fusion Drive Format ") + warningStyle.Render("NOT IMPLEMENTED")
+    renderString += "\n" + bodyStyle.Render("'t' for ") + commandStyle.Render("Test Menu")
     renderString += "\n" + quitStyle.Render("'q' to quit")
   } else {
     renderString = "\n"
     switch m.commandType {
     case "GPU":
-      renderString += bodyStyle.Render("GPU is: ") + commandStyle.Render(m.command)
+      renderString += bodyStyle.Render("GPU is: ") + commandStyle.Render(m.command) + "\n" + warningStyle.Render("TODO: FORMAT THIS BETTER")
+
     case "RAM":
       renderString += bodyStyle.Render("RAM is: ") + commandStyle.Render(m.command)
     case "CPU":
@@ -312,6 +326,12 @@ func (m model) View() string {
     case "WIFI":
       renderString += bodyStyle.Render("If wifi card was detected, you should now be connected!")
       displayOptions = false
+    case "TEST":
+      renderString += bodyStyle.Render("Yo sorry B but this hasn't been implemented yet. Look out for these tests in the future")
+      renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("Harddrive read test")
+      renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("Harddrive write test")
+      renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("CPU Stress test")
+      renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("RAM test")
 
     default:
       renderString += bodyStyle.Render("Fucking uhhhhhh") + commandStyle.Render(" Idk B")
