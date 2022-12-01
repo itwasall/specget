@@ -90,13 +90,14 @@ func getHDD(m model) (tea.Model, tea.Cmd){
   return m, nil
 }
 
+
 func getGPU(m model) (tea.Model, tea.Cmd){
   c:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p'")
   gpu_info, err := c.Output() 
 
   // Boring Go error handling
   if err != nil {
-    fmt.Println("Error:", err)
+    fmt.Println("Error Getting GPU:", err)
     return m, nil
   }
 
@@ -112,7 +113,7 @@ func getRAM(m model) (tea.Model, tea.Cmd) {
 
   // Boring Go error handling
   if err != nil {
-    fmt.Println("Error:", err)
+    fmt.Println("Error Getting RAM:", err)
     return m, nil
   }
 
@@ -128,7 +129,7 @@ func getCPU(m model) (tea.Model, tea.Cmd) {
 
   // Boring Go error handling
   if err != nil {
-    fmt.Println("Error: ", err)
+    fmt.Println("Error Getting CPU: ", err)
     return m, nil
   }
 
@@ -138,7 +139,19 @@ func getCPU(m model) (tea.Model, tea.Cmd) {
 }
 
 func installOS(m model) (tea.Model, tea.Cmd){
-  m.command = warningStyle.Render("This action must be allowed to complete in it's entirety before anything else is done. Are you sure? (Y/N)")
+  // m.command = warningStyle.Render("This action must be allowed to complete in it's entirety before anything else is done. Are you sure? (Y/N)")
+  
+  c := exec.Command("/Install\\ macOS\\ Catalina.app/Contents/Resources/startosinstall", "--agreetolicense", "--volume", "/Volumes/Macintosh\\ HD/")
+
+  install_os_info, err := c.Output()
+
+  if err != nil {
+    fmt.Println("Error Installing OS:", err)
+
+    return m, nil
+  }
+
+  m.command = string(install_os_info[:])
   m.commandType = "OS"
 
   return m, nil
@@ -150,7 +163,7 @@ func getWifi(m model) (tea.Model, tea.Cmd) {
 
   // Boring Go error handling
   if err != nil {
-    fmt.Println("Error: ", err)
+    fmt.Println("Error Connecting to WiFi: ", err)
     return m, nil
   }
 
@@ -165,7 +178,7 @@ func pingTest(m model) (tea.Model, tea.Cmd){
 
   // Boring Go error handling
   if err != nil {
-    fmt.Println("Error: ", err)
+    fmt.Println("Error pinging https://google.com : ", err)
     return m, nil
   }
 
@@ -181,7 +194,7 @@ func formatDrive(m model, fs string) (tea.Model, tea.Cmd) {
     m.command = "APFS"
     err := c.Run()
     if err != nil {
-      fmt.Println("Error: ", err)
+      fmt.Println("Error formating drive to APFS: ", err)
       return m, nil
     }
   } else if fs == "JHFS+" {
@@ -189,7 +202,7 @@ func formatDrive(m model, fs string) (tea.Model, tea.Cmd) {
     m.command = "JHFS+"
     err := c.Run()
     if err != nil {
-      fmt.Println("Error: ", err)
+      fmt.Println("Error formatting drive to JHFS+: ", err)
       return m, nil
     }
   } else {
@@ -199,7 +212,7 @@ func formatDrive(m model, fs string) (tea.Model, tea.Cmd) {
     c.Stderr = os.Stderr
     err := c.Run()
     if err != nil {
-      fmt.Println("Error: ", err)
+      fmt.Println("Error formatting fusion drive: ", err)
       return m, nil
     }
   }
