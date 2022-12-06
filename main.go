@@ -5,8 +5,10 @@ import (
   "os"
   "os/exec"
   "strings"
+  "io/ioutil"
   tea "github.com/charmbracelet/bubbletea"
   "github.com/charmbracelet/lipgloss"
+  "golang.org/x/exp/slices"
 )
 
 var (
@@ -36,8 +38,8 @@ var (
     PaddingLeft(3).
     PaddingRight(3)
 
-
 )
+
 
 type model struct {
   altscreen bool
@@ -46,6 +48,7 @@ type model struct {
   commandType string
   err error 
   disclaimerShow bool
+  testMenu bool
 }
 
 type commandFinishedMsg struct { err error }
@@ -140,8 +143,10 @@ func getCPU(m model) (tea.Model, tea.Cmd) {
 
 func installOS(m model) (tea.Model, tea.Cmd){
   // m.command = warningStyle.Render("This action must be allowed to complete in it's entirety before anything else is done. Are you sure? (Y/N)")
+
+
   
-  c := exec.Command("/Install\\ macOS\\ Catalina.app/Contents/Resources/startosinstall", "--agreetolicense", "--volume", "/Volumes/Macintosh\\ HD/")
+  c := exec.Command("bash", "-c", "./install_os.sh")
 
   install_os_info, err := c.Output()
 
@@ -158,7 +163,25 @@ func installOS(m model) (tea.Model, tea.Cmd){
 }
 
 func getWifi(m model) (tea.Model, tea.Cmd) {
-  c := exec.Command("/usr/libexec/airportd", "en1", "alloc", "--ssid", "Geoff", "--security", "wpa2", "--password", "digital1")
+
+  rootFolder, err := ioutil.ReadDir("/")
+  if err != nil {
+    fmt.Println("Error reading '/' directory ", err)
+    return m, nil
+  } 
+
+  var rootFolderItems []string
+
+  for _, f := range rootFolder {
+    rootFolderItems = append(rootFolderItems, f.Name())
+  }
+
+  if slices.Contains(rootFolderItems, "Install macOS Catalina.app"){
+    m.commandType = "OLDOS"
+    return m, nil
+  }
+
+  c := exec.Command("/usr/libexec/airportd", "en0", "alloc", "--ssid", "Geoff", "--security", "wpa2", "--password", "digital1")
   wifi_info, err := c.Output()
 
   // Boring Go error handling
@@ -220,6 +243,27 @@ func formatDrive(m model, fs string) (tea.Model, tea.Cmd) {
   return m, nil
 }
 
+func testMenu_HDDWriteTest(m model) (tea.Model, tea.Cmd) {
+  // c := exec.Command("bash", "-c", "dd if=/dev/zero bs=2048k of=tstFile count=1024 2>&1 | grep sec | awk '{print $1 / 1024 / 1024 / $5, \"MB/sec\"}')")
+  c := exec.Command("dd", "if=/dev/zero", "bs=2048k", "of=tstFile2", "count=1024", "|", "grep", "sec", "|", "awk", "'{print $1/ 1024/ 1024/ $5, \"MB/sec\"}'")
+  // err := c.Run()
+  writeTest_info, err := c.Output()
+  fmt.Println("HDD Write Test engaged")
+  if err != nil {
+    fmt.Println("Error executing write test: ", err)
+    return m, nil
+  }
+  fmt.Println("HDD Write Test completed")
+  m.commandType = "TEST_WRITE"
+  m.command = string(writeTest_info[:])
+  return m, nil
+}
+
+func testMenu_HDDReadTest(m model) (tea.Model, tea.Cmd) {
+  return m, nil
+}
+
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   switch msg := msg.(type){
   case tea.KeyMsg:
@@ -234,6 +278,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     case "h":
       m.commandPresent = true
       m.disclaimerShow = false
+      if m.testMenu {
+        m.testMenu = !m.testMenu
+        return testMenu_HDDWriteTest(m)
+      }
       return getHDD(m)
     case "c":
       m.commandPresent = true
@@ -242,6 +290,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     case "r":
       m.commandPresent = true
       m.disclaimerShow = false
+      if m.testMenu {
+        m.testMenu = !m.testMenu
+        return m, nil
+      }
       return getRAM(m)
     case "g":
       m.commandPresent = true
@@ -250,6 +302,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     case "w":
       m.commandPresent = true
       m.disclaimerShow = false
+      if m.testMenu {
+        m.testMenu = !m.testMenu
+        return m, nil
+      }
       return getWifi(m)
     case "p":
       m.commandPresent = true
@@ -271,6 +327,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       m.commandPresent = true
       m.disclaimerShow = false
       m.commandType = "TEST"
+      m.testMenu = true
+      return m, nil
+    case "b":
+      m.commandPresent = false
+      m.disclaimerShow = false
       return m, nil
     case "a":
       m.disclaimerShow = false
@@ -342,16 +403,21 @@ func (m model) View() string {
     case "TEST":
       renderString += bodyStyle.Render("Yo sorry B but this hasn't been implemented yet. Look out for these tests in the future")
       renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("Harddrive read test")
+
       renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("Harddrive write test")
       renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("CPU Stress test")
       renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("RAM test")
+    case "TEST_WRITE":
+      renderString += "\n" + bodyStyle.Render("Write Test:") + commandStyle.Render(m.command)
+    case "OLDOS":
+      renderString += "\n" + bodyStyle.Render("The OS you're booting off of is too old for this command to work.") + "\n" + bodyStyle.Render("Please use ") + commandStyle.Render("Big Sur") + bodyStyle.Render(" or later to use this feature")
 
     default:
       renderString += bodyStyle.Render("Fucking uhhhhhh") + commandStyle.Render(" Idk B")
     }
     m.commandPresent = !m.commandPresent
     if displayOptions {
-      renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [h]dd | [q]uit")
+      renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [h]dd | [b]ack to menu | [q]uit")
     }
   }
   /*
@@ -373,7 +439,7 @@ func (m model) View() string {
 }
 
 func main(){
-  m := model{commandPresent: false, disclaimerShow: true}
+  m := model{commandPresent: false, disclaimerShow: true, testMenu: false}
 
   if err:= tea.NewProgram(m).Start(); err != nil {
     fmt.Println("Error! ", err)
