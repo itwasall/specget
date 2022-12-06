@@ -57,6 +57,26 @@ func (m model) Init() tea.Cmd {
   return nil
 }
 
+func checkDir(path string, searchterm string) bool {
+  // Read items at path
+  folderSearch, err := ioutil.ReadDir(path)
+  if err != nil {
+    fmt.Println("Path Error! ", err)
+    return false
+  }
+  var folderItems []string
+  // Put the names of the items at path into slice/s
+  for _, f := range folderSearch{
+    folderItems = append(folderItems, f.Name())
+  }
+  // Searh slices for search term, returning true if found, false if err or not
+  if slices.Contains(folderItems, searchterm){
+    return true
+  }
+  return false
+
+}
+
 func getHDD(m model) (tea.Model, tea.Cmd){
   hdd_fusion_check := exec.Command("bash", "-c", "diskutil info /dev/disk2")
   // dev/disk0 being the default drive macOS is installed on
@@ -142,11 +162,19 @@ func getCPU(m model) (tea.Model, tea.Cmd) {
 }
 
 func installOS(m model) (tea.Model, tea.Cmd){
-  // m.command = warningStyle.Render("This action must be allowed to complete in it's entirety before anything else is done. Are you sure? (Y/N)")
+  var startOSInstall string
+  // Fuck off you try finding a better way
+  if checkDir("/", "Install macOS Catalina.app"){
+    startOSInstall = `/Install\ macOS\ Catalina.app/Contents/Resources/startosinstall`
+  } else if checkDir("/", "Install macOS Big Sur.app") {
+    startOSInstall = `/Install\ macOS\ Big\ Sur.app/Contents/Resources/startosinstall`
+  } else if checkDir("/", "Install macOS Monterey.app") {
+    startOSInstall = `/Install\ macOS\ Monterey.app/Contents/Resources/startosinstall`
+  }
+  c := exec.Command(startOSInstall, "--agreetolicense", "--volume", `/Volumes/Macintosh\ HD/`)
 
+  c.Run()
 
-  
-  c := exec.Command("bash", "-c", "./install_os.sh")
 
   install_os_info, err := c.Output()
 
@@ -164,25 +192,15 @@ func installOS(m model) (tea.Model, tea.Cmd){
 
 func getWifi(m model) (tea.Model, tea.Cmd) {
 
-  rootFolder, err := ioutil.ReadDir("/")
-  if err != nil {
-    fmt.Println("Error reading '/' directory ", err)
-    return m, nil
-  } 
-
-  var rootFolderItems []string
-
-  for _, f := range rootFolder {
-    rootFolderItems = append(rootFolderItems, f.Name())
-  }
-
-  if slices.Contains(rootFolderItems, "Install macOS Catalina.app"){
+  if checkDir("/", "Install macOS Catalina.app") {
     m.commandType = "OLDOS"
     return m, nil
   }
 
   c := exec.Command("/usr/libexec/airportd", "en0", "alloc", "--ssid", "Geoff", "--security", "wpa2", "--password", "digital1")
   wifi_info, err := c.Output()
+  
+  m.commandType = "WIFI"
 
   // Boring Go error handling
   if err != nil {
@@ -191,7 +209,6 @@ func getWifi(m model) (tea.Model, tea.Cmd) {
   }
 
   m.command = string(wifi_info[:])
-  m.commandType = "WIFI"
   return m, nil
 }
 
@@ -411,7 +428,6 @@ func (m model) View() string {
       renderString += "\n" + bodyStyle.Render("Write Test:") + commandStyle.Render(m.command)
     case "OLDOS":
       renderString += "\n" + bodyStyle.Render("The OS you're booting off of is too old for this command to work.") + "\n" + bodyStyle.Render("Please use ") + commandStyle.Render("Big Sur") + bodyStyle.Render(" or later to use this feature")
-
     default:
       renderString += bodyStyle.Render("Fucking uhhhhhh") + commandStyle.Render(" Idk B")
     }
