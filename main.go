@@ -304,7 +304,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       m.commandPresent = true
       m.disclaimerShow = false
       return getCPU(m)
-    case "r":
+    case "r":F
       m.commandPresent = true
       m.disclaimerShow = false
       if m.testMenu {
@@ -367,7 +367,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       m.err = msg.err
       return m, tea.Quit
     }
-  }
+  }F
   return m, nil
 }
 
@@ -433,7 +433,7 @@ func (m model) View() string {
     }
     m.commandPresent = !m.commandPresent
     if displayOptions {
-      renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [h]dd | [b]ack to menu | [q]uit")
+      renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [h]dd | [b]ack to menu | [q]uit")F
     }
   }
   /*
