@@ -125,7 +125,7 @@ func getHDD(m model) (tea.Model, tea.Cmd){
     }
     is_solidstate := string(hdd_is_solidstate[:])
     if strings.Contains(is_solidstate, "Yes") {
-      m.command = "\n" + bodyStyle.Render("Is SSD: ") + commandStyle.Render("Yes")
+      m.command += "\n" + bodyStyle.Render("Is SSD: ") + commandStyle.Render("Yes")
     }
 
     hdd_protocol, err := hdd_protocol_cmd.Output()
@@ -133,7 +133,7 @@ func getHDD(m model) (tea.Model, tea.Cmd){
     if err != nil {
       fmt.Println("Error determing drive protocol: ", err)
     }
-    m.command = "\n" + bodyStyle.Render("Protocol: ") + commandStyle.Render(string(hdd_protocol[:]))
+    m.command += "\n" + bodyStyle.Render("Protocol: ") + commandStyle.Render(string(hdd_protocol[:]))
 
   }
 
