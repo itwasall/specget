@@ -104,7 +104,37 @@ func getHDD(m model) (tea.Model, tea.Cmd){
   if strings.Contains(fusion_info_string, "Fusion Drive"){
     m.command = bodyStyle.Render("\nDEVICE IS USING FUSION DRIVE\n/dev/disk2: ") + commandStyle.Render(string(hdd_info2[:]))
   } else {
+  // Otherwise if the drive isn't a fusion drive then whether or not it's an SSD, and what kind of protocol the drive is using
+  //  is found and displayed. The latter is important because a SATA SSD is weaker than a PCI-Expess (PCI-E) SSD. Just to confuse
+  //  matters further, NVMe drives are PCI-E. No we haven't used enough of the alphabet to convolude this yet. We haven't even
+  //  included M.2!
+
+  // too long;didn't give a shit:
+  //    SATA SSD = Slow SSD
+  //    PCIE SSD aka NVMe SSD = Fast SSD 
     m.command = bodyStyle.Render("   /dev/disk0: ") + commandStyle.Render(string(hdd_info[:]))
+
+    hdd_is_solidstate_cmd := exec.Command("bash", "-c", "diskutil info /dev/disk0 | grep Solid")
+    hdd_protocol_cmd := exec.Command("bash", "-c", "diskutil info /dev/disk0 | grep Protocol | awk '{print $2}'")
+
+    hdd_is_solidstate, err := hdd_is_solidstate_cmd.Output()
+    
+    // Boring Go error handling
+    if err != nil {
+      fmt.Println("Error determing if drive is solid state: ", err)
+    }
+    is_solidstate := string(hdd_is_solidstate[:])
+    if strings.Contains(is_solidstate, "Yes") {
+      m.command = "\n" + bodyStyle.Render("Is SSD: ") + commandStyle.Render("Yes")
+    }
+
+    hdd_protocol, err := hdd_protocol_cmd.Output()
+    // Boring Go error handling
+    if err != nil {
+      fmt.Println("Error determing drive protocol: ", err)
+    }
+    m.command = "\n" + bodyStyle.Render("Protocol: ") + commandStyle.Render(string(hdd_protocol[:]))
+
   }
 
   // **IGNORE**
