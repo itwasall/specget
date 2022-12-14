@@ -22,7 +22,7 @@ var (
   bodyStyle = lipgloss.NewStyle().
     Foreground(lipgloss.Color("#404040"))
   warningStyle = lipgloss.NewStyle().
-    Background(lipgloss.Color("#ffffff")).
+    //Background(lipgloss.Color("#505059")).
     Foreground(lipgloss.Color("#a03000"))
   
   quitStyle = lipgloss.NewStyle().
@@ -124,7 +124,21 @@ func getGPU(m model) (tea.Model, tea.Cmd){
     return m, nil
   }
 
-  m.command = string(gpu_info[:]) 
+  command_raw := string(gpu_info[:])
+  m.command = strings.Split(strings.Split(command_raw, `<"`)[1], `">`)[0]
+
+  c2:= exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep VRAM | awk '{print $5/1024\"GB\"}'")
+  gpuvram_info, err := c2.Output()
+
+  // Boring Go error handling
+  if err != nil {
+    m.command += " (VRAM Unknown)"
+  }
+
+  command2_raw := string(gpuvram_info)
+  m.command += " " + command2_raw
+
+  // m.command = command_splits[0]
   m.commandType = "GPU"
   return m, nil
 
@@ -304,7 +318,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       m.commandPresent = true
       m.disclaimerShow = false
       return getCPU(m)
-    case "r":F
+    case "r":
       m.commandPresent = true
       m.disclaimerShow = false
       if m.testMenu {
@@ -367,7 +381,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       m.err = msg.err
       return m, tea.Quit
     }
-  }F
+  }
   return m, nil
 }
 
@@ -378,7 +392,7 @@ func (m model) View() string {
   renderString = ""
   titleString = ""
   if m.disclaimerShow {
-    titleString += disclaimerStyle.Render("This is Niall's shitty hardware detection tool. No support given") + "\n"
+    titleString += disclaimerStyle.Render("Welcome to `specget`. Now at least 13% faster!") + "\n"
   }
   if !m.commandPresent {
     renderString += titleStyle.Render("Please enter a command")
@@ -387,20 +401,19 @@ func (m model) View() string {
     renderString += "\n" + bodyStyle.Render("'r' for ") + commandStyle.Render("ram") 
     renderString += "\n" + bodyStyle.Render("'g' for ") + commandStyle.Render("gpu") 
     renderString += "\n" + bodyStyle.Render("'h' for ") + commandStyle.Render("hdd")
-    renderString += "\n" + bodyStyle.Render("'w' for ") + commandStyle.Render("wifi ") + warningStyle.Render("BROKEN")
-    renderString += "\n" + bodyStyle.Render("'o' for ") + commandStyle.Render("os install ") + warningStyle.Render("NOT IMPLEMENTED")
-    renderString += "\n" + bodyStyle.Render("'p' for ") + commandStyle.Render("ping test")
-    renderString += "\n" + bodyStyle.Render("'1' for ") + commandStyle.Render("APFS Format")
-    renderString += "\n" + bodyStyle.Render("'2' for ") + commandStyle.Render("JHFS+ Format")
-    renderString += "\n" + bodyStyle.Render("'3' for ") + commandStyle.Render("Fusion Drive Format ") + warningStyle.Render("NOT IMPLEMENTED")
-    renderString += "\n" + bodyStyle.Render("'t' for ") + commandStyle.Render("Test Menu")
+    renderString += "\n" + bodyStyle.Render("'w' for ") + commandStyle.Render("wifi ") + warningStyle.Render("Coming Soon")
+    renderString += "\n" + bodyStyle.Render("'o' for ") + commandStyle.Render("os install ") + warningStyle.Render("Coming Soon")
+    // renderString += "\n" + bodyStyle.Render("'p' for ") + commandStyle.Render("ping test")+ warningStyle.Render("NOT IMPLEMENTED")
+    renderString += "\n" + bodyStyle.Render("'1' for ") + commandStyle.Render("APFS Format ") + warningStyle.Render("Coming Soon")
+    renderString += "\n" + bodyStyle.Render("'2' for ") + commandStyle.Render("JHFS+ Format ") + warningStyle.Render("Coming Soon")
+    renderString += "\n" + bodyStyle.Render("'3' for ") + commandStyle.Render("Fusion Drive Format ") + warningStyle.Render("Coming Soon")
+    renderString += "\n" + bodyStyle.Render("'t' for ") + commandStyle.Render("Test Menu ") + warningStyle.Render("Coming Not Soon")
     renderString += "\n" + quitStyle.Render("'q' to quit")
   } else {
     renderString = "\n"
     switch m.commandType {
     case "GPU":
-      renderString += bodyStyle.Render("GPU is: ") + commandStyle.Render(m.command) + "\n" + warningStyle.Render("TODO: FORMAT THIS BETTER")
-
+      renderString += bodyStyle.Render("GPU is: ") + commandStyle.Render(m.command) 
     case "RAM":
       renderString += bodyStyle.Render("RAM is: ") + commandStyle.Render(m.command)
     case "CPU":
@@ -433,7 +446,7 @@ func (m model) View() string {
     }
     m.commandPresent = !m.commandPresent
     if displayOptions {
-      renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [h]dd | [b]ack to menu | [q]uit")F
+      renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [h]dd | [b]ack to menu | [q]uit")
     }
   }
   /*
