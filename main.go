@@ -47,6 +47,7 @@ type model struct {
 	err            error
 	disclaimerShow bool
 	testMenu       bool
+	formatMenu     bool
 }
 
 type commandFinishedMsg struct{ err error }
@@ -332,11 +333,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q":
 			return m, tea.Quit
-		case "o":
+		case "c":
 			m.commandPresent = true
 			m.disclaimerShow = false
-			return (installOS(m))
-
+			return getCPU(m)
+		case "f":
+			m.commandPresent = true
+			m.disclaimerShow = false
+			m.commandType = "FORMAT"
+		case "g":
+			m.commandPresent = true
+			m.disclaimerShow = false
+			return getGPU(m)
 		case "h":
 			m.commandPresent = true
 			m.disclaimerShow = false
@@ -345,10 +353,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return testMenu_HDDWriteTest(m)
 			}
 			return getHDD(m)
-		case "c":
+		case "p":
 			m.commandPresent = true
 			m.disclaimerShow = false
-			return getCPU(m)
+			return pingTest(m)
+		case "o":
+			m.commandPresent = true
+			m.disclaimerShow = false
+			return (installOS(m))
 		case "r":
 			m.commandPresent = true
 			m.disclaimerShow = false
@@ -357,10 +369,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return getRAM(m)
-		case "g":
+		case "t":
 			m.commandPresent = true
 			m.disclaimerShow = false
-			return getGPU(m)
+			m.commandType = "TEST"
+			m.testMenu = true
+			return m, nil
 		case "w":
 			m.commandPresent = true
 			m.disclaimerShow = false
@@ -369,10 +383,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return getWifi(m)
-		case "p":
-			m.commandPresent = true
-			m.disclaimerShow = false
-			return pingTest(m)
 		case "1":
 			m.commandPresent = true
 			m.disclaimerShow = false
@@ -385,12 +395,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.commandPresent = true
 			m.disclaimerShow = false
 			return formatDrive(m, "Fusion")
-		case "t":
-			m.commandPresent = true
-			m.disclaimerShow = false
-			m.commandType = "TEST"
-			m.testMenu = true
-			return m, nil
 		case "b":
 			m.commandPresent = false
 			m.disclaimerShow = false
@@ -435,9 +439,7 @@ func (m model) View() string {
 		renderString += "\n" + bodyStyle.Render("'w' for ") + commandStyle.Render("wifi ") + warningStyle.Render("Coming Soon")
 		renderString += "\n" + bodyStyle.Render("'o' for ") + commandStyle.Render("os install ") + warningStyle.Render("Coming Soon")
 		// renderString += "\n" + bodyStyle.Render("'p' for ") + commandStyle.Render("ping test")+ warningStyle.Render("NOT IMPLEMENTED")
-		renderString += "\n" + bodyStyle.Render("'1' for ") + commandStyle.Render("APFS Format ") + warningStyle.Render("Coming Soon")
-		renderString += "\n" + bodyStyle.Render("'2' for ") + commandStyle.Render("JHFS+ Format ") + warningStyle.Render("Coming Soon")
-		renderString += "\n" + bodyStyle.Render("'3' for ") + commandStyle.Render("Fusion Drive Format ") + warningStyle.Render("Coming Soon")
+		renderString += "\n" + bodyStyle.Render("'f' for ") + commandStyle.Render("Format Menu")
 		renderString += "\n" + bodyStyle.Render("'t' for ") + commandStyle.Render("Test Menu ") + warningStyle.Render("Coming Not Soon")
 		renderString += "\n" + quitStyle.Render("'q' to quit")
 	} else {
@@ -456,18 +458,22 @@ func (m model) View() string {
 			displayOptions = false
 		case "PING":
 			renderString += bodyStyle.Render("Ping results: \n") + commandStyle.Render(m.command)
-		case "FORMAT":
-			renderString += bodyStyle.Render("Formatted drive: ") + commandStyle.Render(m.command)
 		case "WIFI":
 			renderString += bodyStyle.Render("If wifi card was detected, you should now be connected!")
 			displayOptions = false
 		case "TEST":
 			renderString += bodyStyle.Render("Yo sorry B but this hasn't been implemented yet. Look out for these tests in the future")
-			renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("Harddrive read test")
+			renderString += "\n" + bodyStyle.Render("'?' for ") + commandStyle.Render("Harddrive read test")
 
-			renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("Harddrive write test")
-			renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("CPU Stress test")
-			renderString += "\n" + bodyStyle.Render("'???' for ") + commandStyle.Render("RAM test")
+			renderString += "\n" + bodyStyle.Render("'?' for ") + commandStyle.Render("Harddrive write test")
+			renderString += "\n" + bodyStyle.Render("'?' for ") + commandStyle.Render("CPU Stress test")
+			renderString += "\n" + bodyStyle.Render("'?' for ") + commandStyle.Render("RAM test")
+		case "FORMAT":
+			renderString += warningStyle.Render("NOT IMPLEMENTED") + "\n" + bodyStyle.Render("Assumed drive is /dev/disk0, fusion assumes /dev/disk0 & /dev/disk1")
+			renderString += "\n" + bodyStyle.Render("Use APFS Format for modern OS versions. Use JHFS+ for Catalina & below")
+			renderString += "\n" + bodyStyle.Render("'?' for ") + commandStyle.Render("APFS Format")
+			renderString += "\n" + bodyStyle.Render("'?' for ") + commandStyle.Render("JHFS+ Format")
+			renderString += "\n" + bodyStyle.Render("'?' for ") + commandStyle.Render("Fusion Drive Format")
 		case "TEST_WRITE":
 			renderString += "\n" + bodyStyle.Render("Write Test:") + commandStyle.Render(m.command)
 		case "OLDOS":
@@ -499,7 +505,7 @@ func (m model) View() string {
 }
 
 func main() {
-	m := model{commandPresent: false, disclaimerShow: true, testMenu: false}
+	m := model{commandPresent: false, disclaimerShow: true, formatMenu: false, testMenu: false}
 
 	if err := tea.NewProgram(m).Start(); err != nil {
 		fmt.Println("Error! ", err)
