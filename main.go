@@ -118,7 +118,7 @@ func getHDD(m model) (tea.Model, tea.Cmd) {
 	// If "Fusion Drive" is found in the output of hdd_fusion_check, then print the disk size of /dev/disk2 (the default allocation
 	//  of a fusion drive), otherwise print the disk size of /dev/disk0
 	fusion_info_string := string(fusion_info_bytes[:])
-	if strings.Contains(fusion_info_string, "Fusion Drive") {
+	if strings.Contains(fusion_info_string, "Fusion Drive:              Yes") {
 		m.command = bodyStyle.Render("\nDEVICE IS USING FUSION DRIVE\n/dev/disk2: ") + commandStyle.Render(string(hdd_info2[:]))
 	} else {
 		// Otherwise if the drive isn't a fusion drive then whether or not it's an SSD, and what kind of protocol the drive is using
