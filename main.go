@@ -166,6 +166,11 @@ func getHDD(m model) (tea.Model, tea.Cmd) {
 }
 
 func getGPU(m model) (tea.Model, tea.Cmd) {
+	if checkM1() {
+		m.command = "M1 GPU"
+		m.commandType = "GPU"
+		return m, nil
+	}
 	c := exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p'")
 	gpu_info, err := c.Output()
 
