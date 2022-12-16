@@ -155,7 +155,11 @@ func getHDD(m model) (tea.Model, tea.Cmd) {
 		if err != nil {
 			fmt.Println("Error determing drive protocol: ", err)
 		}
-		m.command += "\n" + bodyStyle.Render("Protocol: ") + commandStyle.Render(string(hdd_protocol[:]))
+		hdd_protocol_string := string(hdd_protocol[:])
+		if strings.Contains(hdd_protocol_string, "Apple") {
+			hdd_protocol_string = "Apple Fabric"
+		}
+		m.command += "\n" + bodyStyle.Render("Protocol: ") + commandStyle.Render(hdd_protocol_string)
 
 	}
 
