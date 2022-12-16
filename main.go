@@ -73,7 +73,24 @@ func checkDir(path string, searchterm string) bool {
 		return true
 	}
 	return false
+}
 
+func checkM1() bool {
+	c := exec.Command("sysctl", "-n", "machdep.cpu.brand_string")
+
+	cpu_name_out, err := c.Output()
+
+	if err != nil {
+		fmt.Println("Error getting CPU: ", err)
+		return false
+	}
+
+	cpu_name := string(cpu_name_out[:])
+
+	if strings.Contains(cpu_name, " M1") {
+		return true
+	}
+	return false
 }
 
 func getHDD(m model) (tea.Model, tea.Cmd) {
@@ -165,7 +182,7 @@ func getGPU(m model) (tea.Model, tea.Cmd) {
 	gpuvram_info, err := c2.Output()
 
 	// Boring Go error handling
-	if err != nil {
+	if err != nil || len(string(gpuvram_info[:])) == 0 {
 		m.command += " (VRAM Unknown)"
 	}
 
@@ -175,7 +192,27 @@ func getGPU(m model) (tea.Model, tea.Cmd) {
 	// m.command = command_splits[0]
 	m.commandType = "GPU"
 	return m, nil
+}
 
+func getGPUCore(m model) (tea.Model, tea.Cmd) {
+	if checkM1() == false {
+		m.command = "This machine doesn't have an M1 chip"
+		m.commandType = "NOTM1"
+		return m, nil
+	}
+	c := exec.Command("bash", "-c", "ioreg -rc IOGPU | grep core-count")
+
+	gpu_core_out, err := c.Output()
+
+	// Boring Go error handling
+	if err != nil {
+		fmt.Println("Error Getting GPU Cores: ", err)
+		return m, nil
+	}
+
+	m.command = string(gpu_core_out[:])
+	m.commandType = "GPUCORE"
+	return m, nil
 }
 
 func getRAM(m model) (tea.Model, tea.Cmd) {
@@ -206,6 +243,25 @@ func getCPU(m model) (tea.Model, tea.Cmd) {
 
 	m.command = string(cpu_info[:])
 	m.commandType = "CPU"
+	return m, nil
+}
+
+func getCPUCore(m model) (tea.Model, tea.Cmd) {
+	if checkM1() != true {
+		m.command = "This machine doesn't have an M1 chip"
+		m.commandType = "NOTM1"
+		return m, nil
+	}
+	c := exec.Command("sysctl", "-n", "machdep.cpu.core_count")
+	core_count, err := c.Output()
+
+	// Boring Go error handling
+	if err != nil {
+		fmt.Println("Error getting CPU core count: ", err)
+	}
+
+	m.command = string(core_count[:])
+	m.commandType = "CPUCORE"
 	return m, nil
 }
 
@@ -337,6 +393,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.commandPresent = true
 			m.disclaimerShow = false
 			return getCPU(m)
+		case "C":
+			m.commandPresent = true
+			m.disclaimerShow = false
+			return getCPUCore(m)
 		case "f":
 			m.commandPresent = true
 			m.disclaimerShow = false
@@ -345,6 +405,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.commandPresent = true
 			m.disclaimerShow = false
 			return getGPU(m)
+		case "G":
+			m.commandPresent = true
+			m.disclaimerShow = false
+			return getGPUCore(m)
 		case "h":
 			m.commandPresent = true
 			m.disclaimerShow = false
@@ -433,8 +497,10 @@ func (m model) View() string {
 		renderString += titleStyle.Render("Please enter a command")
 
 		renderString += "\n" + bodyStyle.Render("'c' for ") + commandStyle.Render("cpu")
+		renderString += "\n" + bodyStyle.Render("'C' for ") + commandStyle.Render("cpu core ") + warningStyle.Render("M1 Only")
 		renderString += "\n" + bodyStyle.Render("'r' for ") + commandStyle.Render("ram")
 		renderString += "\n" + bodyStyle.Render("'g' for ") + commandStyle.Render("gpu")
+		renderString += "\n" + bodyStyle.Render("'G' for ") + commandStyle.Render("gpu core ") + warningStyle.Render("M1 Only")
 		renderString += "\n" + bodyStyle.Render("'h' for ") + commandStyle.Render("hdd")
 		renderString += "\n" + bodyStyle.Render("'w' for ") + commandStyle.Render("wifi ") + warningStyle.Render("Coming Soon")
 		renderString += "\n" + bodyStyle.Render("'o' for ") + commandStyle.Render("os install ") + warningStyle.Render("Coming Soon")
@@ -447,15 +513,21 @@ func (m model) View() string {
 		switch m.commandType {
 		case "GPU":
 			renderString += bodyStyle.Render("GPU is: ") + commandStyle.Render(m.command)
+		case "GPUCORE":
+			renderString += bodyStyle.Render("GPU Core Count is: ") + commandStyle.Render(m.command)
 		case "RAM":
 			renderString += bodyStyle.Render("RAM is: ") + commandStyle.Render(m.command)
 		case "CPU":
 			renderString += bodyStyle.Render("CPU is: ") + commandStyle.Render(m.command)
+		case "CPUCORE":
+			renderString += bodyStyle.Render("CPU Core Count is: ") + commandStyle.Render(m.command)
 		case "HDD":
 			renderString += bodyStyle.Render("Disk Size: ") + commandStyle.Render(m.command)
 		case "OS":
 			renderString += m.command + "\n\n"
 			displayOptions = false
+		case "NOTM1":
+			renderString += commandStyle.Render(m.command)
 		case "PING":
 			renderString += bodyStyle.Render("Ping results: \n") + commandStyle.Render(m.command)
 		case "WIFI":
