@@ -200,7 +200,7 @@ func getGPUCore(m model) (tea.Model, tea.Cmd) {
 		m.commandType = "NOTM1"
 		return m, nil
 	}
-	c := exec.Command("bash", "-c", "ioreg -rc IOGPU | grep core-count")
+	c := exec.Command("bash", "-c", "ioreg -rc IOGPU | grep core-count | awk '{print $4}'")
 
 	gpu_core_out, err := c.Output()
 
