@@ -243,6 +243,7 @@ func getRAM(m model) (tea.Model, tea.Cmd) {
 func getBattery(m model) (tea.Model, tea.Cmd) {
 	battery_count_cmd := exec.Command("bash", "-c", "chroot /Volumes/Macintosh\\ HD system_profiler SPPowerDataType | grep Count")
 	battery_count_info, err := battery_count_cmd.Output()
+	m.commandType = "BATTERY"
 
 	if err != nil {
 		fmt.Println("Error getting battery count: ", err)
@@ -260,8 +261,6 @@ func getBattery(m model) (tea.Model, tea.Cmd) {
 	}
 
 	m.command += "\n" + string(battery_condition_info[:])
-
-	m.commandType = "BATTERY"
 
 	return m, nil
 }
@@ -424,7 +423,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q":
 			return m, tea.Quit
-		case "b":
+		case "B":
 			m.commandPresent = true
 			m.disclaimerShow = false
 			return getBattery(m)
@@ -498,11 +497,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.commandPresent = true
 			m.disclaimerShow = false
 			return formatDrive(m, "Fusion")
-		/*case "b":
-		m.commandPresent = false
-		m.disclaimerShow = false
-		return m, nil
-		*/
+		case "b":
+			m.commandPresent = false
+			m.disclaimerShow = false
+			return m, nil
+
 		case "a":
 			m.disclaimerShow = false
 			m.altscreen = !m.altscreen
@@ -536,7 +535,7 @@ func (m model) View() string {
 	if !m.commandPresent {
 		renderString += titleStyle.Render("Please enter a command")
 
-		renderString += "\n" + bodyStyle.Render("'b' for ") + commandStyle.Render("battery info ") + warningStyle.Render("Macbook Only. OS Install Req.")
+		renderString += "\n" + bodyStyle.Render("'B' for ") + commandStyle.Render("battery info ") + warningStyle.Render("Macbook Only. OS Install Req.")
 		renderString += "\n" + bodyStyle.Render("'c' for ") + commandStyle.Render("cpu")
 		renderString += "\n" + bodyStyle.Render("'C' for ") + commandStyle.Render("cpu core ") + warningStyle.Render("M1 Only")
 		renderString += "\n" + bodyStyle.Render("'r' for ") + commandStyle.Render("ram")
