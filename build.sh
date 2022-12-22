@@ -44,12 +44,29 @@ then
   go build main.go
 
   mv ./main ./bin/specget_macARM
+
+elif [ "$1" == "-h" ] || [ "$1" == "--help" ]
+then
+  echo "specget build script"
+  echo "   All files are compiled to ./bin/"
+  echo ""
+  echo "USAGE:  ./build.sh [ARCH]"
+  echo "  where [ARCH] is:"
+  echo "     -w  --windows:                    WINDOWS EXEC"
+  echo "     -l  --linux:                      LINUX EXEC"
+  echo "     -x86  -x86-64  -mac-intel  --mac: INTEL MAC EXEC"
+  echo "     -arm  -m1  --mac-arm64:           ARM MAC EXEC"
 else
   go build main.go
   
   mv ./main ./bin/main
 fi
-echo "Complete"
-export GOOS=linux go build
-export GOARCH=amd64 go build
-echo "Envs reset"
+if [ "$1" == "-h" ] || [ "$1" == "--help" ]
+then
+  echo ""
+else 
+  echo "Complete"
+  export GOOS=linux go build
+  export GOARCH=amd64 go build
+  echo "Envs reset"
+fi

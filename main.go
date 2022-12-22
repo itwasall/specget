@@ -240,6 +240,32 @@ func getRAM(m model) (tea.Model, tea.Cmd) {
 
 }
 
+func getBattery(m model) (tea.Model, tea.Cmd) {
+	battery_count_cmd := exec.Command("bash", "-c", "chroot /Volumes/Macintosh\\ HD system_profiler SPPowerDataType | grep Count")
+	battery_count_info, err := battery_count_cmd.Output()
+
+	if err != nil {
+		fmt.Println("Error getting battery count: ", err)
+		return m, nil
+	}
+
+	m.command = string(battery_count_info[:])
+
+	battery_condition_cmd := exec.Command("bash", "-c", "chroot /Volumes/Macintosh\\ HD system_profiler SPPowerDataType | grep Condition")
+	battery_condition_info, err := battery_condition_cmd.Output()
+
+	if err != nil {
+		fmt.Println("Error getting battery condition: ", err)
+		return m, nil
+	}
+
+	m.command += "\n" + string(battery_condition_info[:])
+
+	m.commandType = "BATTERY"
+
+	return m, nil
+}
+
 func getCPU(m model) (tea.Model, tea.Cmd) {
 	c := exec.Command("sysctl", "-n", "machdep.cpu.brand_string")
 	cpu_info, err := c.Output()
@@ -398,6 +424,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q":
 			return m, tea.Quit
+		case "b":
+			m.commandPresent = true
+			m.disclaimerShow = false
+			return getBattery(m)
 		case "c":
 			m.commandPresent = true
 			m.disclaimerShow = false
@@ -468,10 +498,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.commandPresent = true
 			m.disclaimerShow = false
 			return formatDrive(m, "Fusion")
-		case "b":
-			m.commandPresent = false
-			m.disclaimerShow = false
-			return m, nil
+		/*case "b":
+		m.commandPresent = false
+		m.disclaimerShow = false
+		return m, nil
+		*/
 		case "a":
 			m.disclaimerShow = false
 			m.altscreen = !m.altscreen
@@ -505,6 +536,7 @@ func (m model) View() string {
 	if !m.commandPresent {
 		renderString += titleStyle.Render("Please enter a command")
 
+		renderString += "\n" + bodyStyle.Render("'b' for ") + commandStyle.Render("battery info ") + warningStyle.Render("Macbook Only. OS Install Req.")
 		renderString += "\n" + bodyStyle.Render("'c' for ") + commandStyle.Render("cpu")
 		renderString += "\n" + bodyStyle.Render("'C' for ") + commandStyle.Render("cpu core ") + warningStyle.Render("M1 Only")
 		renderString += "\n" + bodyStyle.Render("'r' for ") + commandStyle.Render("ram")
@@ -530,6 +562,8 @@ func (m model) View() string {
 			renderString += bodyStyle.Render("CPU is: ") + commandStyle.Render(m.command)
 		case "CPUCORE":
 			renderString += bodyStyle.Render("CPU Core Count is: ") + commandStyle.Render(m.command)
+		case "BATTERY":
+			renderString += commandStyle.Render(m.command)
 		case "HDD":
 			renderString += bodyStyle.Render("Disk Size: ") + commandStyle.Render(m.command)
 		case "OS":
