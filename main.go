@@ -56,6 +56,8 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
+
+
 func checkDir(path string, searchterm string) bool {
 	// Read items at path
 	folderSearch, err := ioutil.ReadDir(path)
