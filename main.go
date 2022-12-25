@@ -56,6 +56,14 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
+func checkError(error_string string, err error) bool {
+	if err != nil {
+		fmt.Println(error_string, err)
+		return true
+	}
+	return false
+}
+
 
 
 func checkDir(path string, searchterm string) bool {
@@ -173,18 +181,13 @@ func getHDD(m model) (tea.Model, tea.Cmd) {
 
 func getGPU(m model) (tea.Model, tea.Cmd) {
 	if checkM1() {
-		m.command = "M1 GPU"
-		m.commandType = "GPU"
+		m.command, m.commandType = "M1 GPU", "GPU"
 		return m, nil
 	}
-	c := exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p'")
-	gpu_info, err := c.Output()
+	gpu_cmd := exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p'")
+	gpu_info, err := gpu_cmd.Output()
 
-	// Boring Go error handling
-	if err != nil {
-		fmt.Println("Error Getting GPU:", err)
-		return m, nil
-	}
+	if checkError("Error Getting GPU: ", err) { return m, nil }
 
 	command_raw := string(gpu_info[:])
 	m.command = strings.Split(strings.Split(command_raw, `<"`)[1], `">`)[0]
@@ -211,18 +214,12 @@ func getGPUCore(m model) (tea.Model, tea.Cmd) {
 		m.commandType = "NOTM1"
 		return m, nil
 	}
-	c := exec.Command("bash", "-c", "ioreg -rc IOGPU | grep core-count | awk '{print $4}'")
+	gpu_core_cmd := exec.Command("bash", "-c", "ioreg -rc IOGPU | grep core-count | awk '{print $4}'")
+	gpu_core_info, err := gpu_core_cmd.Output()
 
-	gpu_core_out, err := c.Output()
+	if checkError("Error Getting GPU Cores: ", err) { return m, nil }
 
-	// Boring Go error handling
-	if err != nil {
-		fmt.Println("Error Getting GPU Cores: ", err)
-		return m, nil
-	}
-
-	m.command = string(gpu_core_out[:])
-	m.commandType = "GPUCORE"
+	m.command, m.commandType = string(gpu_core_info[:]), "GPUCORE"
 	return m, nil
 }
 
@@ -230,16 +227,10 @@ func getRAM(m model) (tea.Model, tea.Cmd) {
 	c := exec.Command("bash", "-c", "sysctl hw.memsize | awk '{print $2/1024/1024/1024 \"GB\"}'")
 	ram_info, err := c.Output()
 
-	// Boring Go error handling
-	if err != nil {
-		fmt.Println("Error Getting RAM:", err)
-		return m, nil
-	}
+	if checkError("Error Getting RAM:", err) { return m, nil }
 
-	m.command = (string(ram_info[:]))
-	m.commandType = "RAM"
+	m.command, m.commandType = (string(ram_info[:])), "RAM"
 	return m, nil
-
 }
 
 func getBattery(m model) (tea.Model, tea.Cmd) {
@@ -247,38 +238,26 @@ func getBattery(m model) (tea.Model, tea.Cmd) {
 	battery_count_info, err := battery_count_cmd.Output()
 	m.commandType = "BATTERY"
 
-	if err != nil {
-		fmt.Println("Error getting battery count: ", err)
-		return m, nil
-	}
+	if checkError("Error getting battery count: ", err) { return m, nil }
 
 	m.command = string(battery_count_info[:])
 
 	battery_condition_cmd := exec.Command("bash", "-c", "chroot /Volumes/Macintosh\\ HD system_profiler SPPowerDataType | grep Condition")
 	battery_condition_info, err := battery_condition_cmd.Output()
 
-	if err != nil {
-		fmt.Println("Error getting battery condition: ", err)
-		return m, nil
-	}
+	if checkError("Error getting battery condition: ", err) { return m, nil }
 
 	m.command += "\n" + string(battery_condition_info[:])
-
 	return m, nil
 }
 
 func getCPU(m model) (tea.Model, tea.Cmd) {
-	c := exec.Command("sysctl", "-n", "machdep.cpu.brand_string")
-	cpu_info, err := c.Output()
+	cpu_cmd := exec.Command("sysctl", "-n", "machdep.cpu.brand_string")
+	cpu_info, err := cpu_cmd.Output()
 
-	// Boring Go error handling
-	if err != nil {
-		fmt.Println("Error Getting CPU: ", err)
-		return m, nil
-	}
+	if checkError("Error Getting CPU: ", err) { return m, nil }
 
-	m.command = string(cpu_info[:])
-	m.commandType = "CPU"
+	m.command, m.commandType = string(cpu_info[:]), "CPU"
 	return m, nil
 }
 
@@ -288,44 +267,12 @@ func getCPUCore(m model) (tea.Model, tea.Cmd) {
 		m.commandType = "NOTM1"
 		return m, nil
 	}
-	c := exec.Command("sysctl", "-n", "machdep.cpu.core_count")
-	core_count, err := c.Output()
+	cpu_core_cmd := exec.Command("sysctl", "-n", "machdep.cpu.core_count")
+	cpu_core_info, err := cpu_core_cmd.Output()
 
-	// Boring Go error handling
-	if err != nil {
-		fmt.Println("Error getting CPU core count: ", err)
-	}
+	if checkError("Error getting CPU core count: ", err) { return m, nil }
 
-	m.command = string(core_count[:])
-	m.commandType = "CPUCORE"
-	return m, nil
-}
-
-func installOS(m model) (tea.Model, tea.Cmd) {
-	var startOSInstall string
-	// Fuck off you try finding a better way
-	if checkDir("/", "Install macOS Catalina.app") {
-		startOSInstall = `/Install\ macOS\ Catalina.app/Contents/Resources/startosinstall`
-	} else if checkDir("/", "Install macOS Big Sur.app") {
-		startOSInstall = `/Install\ macOS\ Big\ Sur.app/Contents/Resources/startosinstall`
-	} else if checkDir("/", "Install macOS Monterey.app") {
-		startOSInstall = `/Install\ macOS\ Monterey.app/Contents/Resources/startosinstall`
-	}
-	c := exec.Command(startOSInstall, "--agreetolicense", "--volume", `/Volumes/Macintosh\ HD/`)
-
-	c.Run()
-
-	install_os_info, err := c.Output()
-
-	if err != nil {
-		fmt.Println("Error Installing OS:", err)
-
-		return m, nil
-	}
-
-	m.command = string(install_os_info[:])
-	m.commandType = "OS"
-
+	m.command, m.commandType = string(cpu_core_info[:]), "CPUCORE"
 	return m, nil
 }
 
@@ -399,23 +346,55 @@ func formatDrive(m model, fs string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func testMenu_HDDWriteTest(m model) (tea.Model, tea.Cmd) {
-	// c := exec.Command("bash", "-c", "dd if=/dev/zero bs=2048k of=tstFile count=1024 2>&1 | grep sec | awk '{print $1 / 1024 / 1024 / $5, \"MB/sec\"}')")
-	c := exec.Command("dd", "if=/dev/zero", "bs=2048k", "of=tstFile2", "count=1024", "|", "grep", "sec", "|", "awk", "'{print $1/ 1024/ 1024/ $5, \"MB/sec\"}'")
-	// err := c.Run()
-	writeTest_info, err := c.Output()
-	fmt.Println("HDD Write Test engaged")
+func installOS(m model) (tea.Model, tea.Cmd) {
+	var startOSInstall string
+	// Fuck off you try finding a better way
+	if checkDir("/", "Install macOS Catalina.app") {
+		startOSInstall = `/Install\ macOS\ Catalina.app/Contents/Resources/startosinstall`
+	} else if checkDir("/", "Install macOS Big Sur.app") {
+		startOSInstall = `/Install\ macOS\ Big\ Sur.app/Contents/Resources/startosinstall`
+	} else if checkDir("/", "Install macOS Monterey.app") {
+		startOSInstall = `/Install\ macOS\ Monterey.app/Contents/Resources/startosinstall`
+	}
+	c := exec.Command(startOSInstall, "--agreetolicense", "--volume", `/Volumes/Macintosh\ HD/`)
+
+	c.Run()
+
+	install_os_info, err := c.Output()
+
 	if err != nil {
-		fmt.Println("Error executing write test: ", err)
+		fmt.Println("Error Installing OS:", err)
+
 		return m, nil
 	}
+
+	m.command = string(install_os_info[:])
+	m.commandType = "OS"
+
+	return m, nil
+}
+
+func testMenu_HDDWriteTest(m model) (tea.Model, tea.Cmd) {
+	write_test_cmd := exec.Command("bash", "-c" "dd if=/dev/zero of=/Volumes/Macintosh HD/tstFile bs=512k count=5000 | grep sec | awk '{print $1/ 1024/ 1024/ $5\"MB/sec\"}'")
+	write_test_info, err := write_test_cmd.Output()
+	fmt.Println("HDD Write Test engaged")
+
+	if checkError("Error executing write test: ", err) { return m, nil }
+
+	m.command, m.commandType = string(write_test_info[:]), "TEST_WRITE"
 	fmt.Println("HDD Write Test completed")
-	m.commandType = "TEST_WRITE"
-	m.command = string(writeTest_info[:])
 	return m, nil
 }
 
 func testMenu_HDDReadTest(m model) (tea.Model, tea.Cmd) {
+	read_test_cmd := exec.Command("bash", "-c", "dd if=/Volumes/Macintosh HD/tstfile of=/dev/null bs=512k count=5000 | grep sec | awk '{print $1/ 1024/ 1024 $5\"MB/sec\"}'")
+	read_test_info, err := read_test_cmd.Output()
+	fmt.Println("HDD Read Test engaged")
+
+	if checkError("Error executing read test: ", err) { return m, nil }
+
+	m.command, m.commandType = string(read_test_info[:]), "TEST_READ"
+	fmt.Println("HDD Read Test completed")
 	return m, nil
 }
 
@@ -470,7 +449,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.disclaimerShow = false
 			if m.testMenu {
 				m.testMenu = !m.testMenu
-				return m, nil
+				return testMenu_HDDReadTest(m)
 			}
 			return getRAM(m)
 		case "t":
@@ -484,7 +463,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.disclaimerShow = false
 			if m.testMenu {
 				m.testMenu = !m.testMenu
-				return m, nil
+				return testMenu_HDDWritetTest(m)
 			}
 			return getWifi(m)
 		case "1":
@@ -590,6 +569,8 @@ func (m model) View() string {
 			renderString += "\n" + bodyStyle.Render("'?' for ") + commandStyle.Render("APFS Format")
 			renderString += "\n" + bodyStyle.Render("'?' for ") + commandStyle.Render("JHFS+ Format")
 			renderString += "\n" + bodyStyle.Render("'?' for ") + commandStyle.Render("Fusion Drive Format")
+		case "TEST_READ":
+			renderString += "\n" + bodyStyle.Render("Read Test:") + commandStyle.Render(m.command)
 		case "TEST_WRITE":
 			renderString += "\n" + bodyStyle.Render("Write Test:") + commandStyle.Render(m.command)
 		case "OLDOS":
