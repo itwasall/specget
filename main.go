@@ -203,6 +203,19 @@ func getGPU(m model) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func getSerial(m model) (tea.Model, tea.Cmd) {
+	c := exec.Command("bash", "-c", "ioreg -w0 -l | grep PlatformSerial | awk '{print $4}'")
+	serial_no, err := c.Output()
+
+	if err != nil {
+		fmt.Println("Error Serial Number:", err)
+		return m, nil
+	}
+	m.command = string(serial_no[:])
+	m.commandType = "SERIAL"
+	return m, nil
+}
+
 func getGPUCore(m model) (tea.Model, tea.Cmd) {
 	if checkM1() == false {
 		m.command = "This machine doesn't have an M1 chip"
@@ -471,6 +484,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return getRAM(m)
+		case "s":
+			m.commandPresent = true
+			m.disclaimerShow = false
+			if m.testMenu {
+				m.testMenu = !m.testMenu
+				return m, nil
+			}
+			return getSerial(m)
 		case "t":
 			m.commandPresent = true
 			m.disclaimerShow = false
