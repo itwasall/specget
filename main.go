@@ -332,6 +332,40 @@ func getCPUCore(m model) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func getActivationStatus(m model) (tea.Model, tea.Cmd) {
+	activation_status_cmd := exec.Command("bash", "-c", "system_profiler SPHardwareDataType | sed -n '20 p'")
+	activation_status_info, err := activation_status_cmd.Output()
+
+	if checkError("Error getting activation status", err) {
+		return m, nil
+	}
+
+	m.command, m.commandType = string(activation_status_info[:]), "ACTIVATION_STATUS"
+	return m, nil
+}
+
+func disableAuthenticatedRoot(m model) (tea.Model, tea.Cmd) {
+	check_os := exec.Command("bash", "-c", "sw_vers | sed -n '2 p' | awk '{print $2}'")
+	check_os_info, err := check_os.Output()
+	if checkError("Error checking OS", err) {
+		return m, nil
+	}
+	if strings.Contains("13.", string(check_os_info[:])) {
+		auth_root_disable := exec.Command("csrutil authenticated-root disable")
+		auth_root_disable_go, err := auth_root_disable.Output()
+		if checkError("Error disabling authenticated root", err) {
+			return m, nil
+		}
+		m.command = "Authenticated root disabled. Reboot back into USB\n" + string(auth_root_disable_go[:])
+		m.commandType = "AUTH_ROOT"
+		return m, nil
+	}
+	m.command = "Not ventura. Disabling authenticated root not necessary"
+	m.commandType = "AUTH_ROOT"
+	return m, nil
+
+}
+
 func formatDrive(m model, fs string) (tea.Model, tea.Cmd) {
 	if fs == "APFS" {
 		c := exec.Command("bash", "-c", "diskutil erasedisk APFS \"Macintosh HD\" /dev/disk0")
@@ -447,6 +481,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q":
 			return m, tea.Quit
+		// ACTIVATION STATUS
+		case "a":
+			m.commandPresent = true
+			m.disclaimerShow = false
+			return getActivationStatus(m)
+		// DISABLE AUTHENTICATED ROOT
+		case "R":
+			m.commandPresent = true
+			m.disclaimerShow = false
+			return disableAuthenticatedRoot(m)
 		// BATTERY
 		case "B":
 			m.commandPresent = true
@@ -546,7 +590,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.disclaimerShow = false
 			return m, nil
 		// Show Altscreen
-		case "a":
+		case "A":
 			m.disclaimerShow = false
 			m.altscreen = !m.altscreen
 			cmd := tea.EnterAltScreen
@@ -580,10 +624,12 @@ func (m model) View() string {
 	if !m.commandPresent {
 		renderString += titleStyle.Render("Please enter a command")
 
+		renderString += "\n" + bodyStyle.Render("'a' for ") + commandStyle.Render("activation status ") + warningStyle.Render("OS Install Req.")
 		renderString += "\n" + bodyStyle.Render("'B' for ") + commandStyle.Render("battery info ") + warningStyle.Render("Macbook Only. OS Install Req.")
 		renderString += "\n" + bodyStyle.Render("'c' for ") + commandStyle.Render("cpu")
 		renderString += "\n" + bodyStyle.Render("'C' for ") + commandStyle.Render("cpu core ") + warningStyle.Render("M1 Only")
 		renderString += "\n" + bodyStyle.Render("'r' for ") + commandStyle.Render("ram")
+		renderString += "\n" + bodyStyle.Render("'R' for ") + commandStyle.Render("disable authenticated root ") + warningStyle.Render("Ventura Only")
 		renderString += "\n" + bodyStyle.Render("'g' for ") + commandStyle.Render("gpu")
 		renderString += "\n" + bodyStyle.Render("'G' for ") + commandStyle.Render("gpu core ") + warningStyle.Render("M1 Only")
 		renderString += "\n" + bodyStyle.Render("'f' for ") + commandStyle.Render("fusion drive test")
@@ -623,6 +669,10 @@ func (m model) View() string {
 		case "OS":
 			renderString += m.command + "\n\n"
 			displayOptions = false
+		case "AUTH_ROOT":
+			renderString += commandStyle.Render(m.command)
+		case "ACTIVATION_STATUS":
+			renderString += commandStyle.Render(m.command)
 		case "NOTM1":
 			renderString += commandStyle.Render(m.command)
 		case "PING":
