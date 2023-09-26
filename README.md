@@ -1,13 +1,8 @@
-# macOS Hardware Detection Program
+# specget
 
-Ever just like, recieve 150 MacBooks and need to verify the specs of each one? Ya me neither, but I made this program to do it anyway
+specget is a portable tool designed for refurbishers to get all required specifications of an iMac or MacBook without having to create a User account. 
 
-## What it do
-- CPU
-- RAM
-- GPU
-- HDD (Size/SSD/SSD Protocol/Fusion Status)
-- Battery Information (Cycle Count/Condition) (Requires macOS to be installed. Doesn't require the set-up process to be completed though)
+## 
 
 ## What it might do later
 - WiFi test
