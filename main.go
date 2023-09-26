@@ -101,6 +101,30 @@ func checkM1() bool {
 	return false
 }
 
+func checkMacOSVersion() string {
+	c := exec.Command("bash", "-c", "sw_vers | sed -n '2 p' | awk '{print $2}'")
+
+	mac_os_version_out, err := c.Output()
+	if err != nil {
+		fmt.Println("Error getting sw_vers", err)
+		return "ERROR"
+	}
+
+	mac_os_version := string(mac_os_version_out[:])
+
+	if strings.Contains(mac_os_version, "13") {
+		return "Ventura"
+	} else if strings.Contains(mac_os_version, "12") {
+		return "Monterey"
+	} else if strings.Contains(mac_os_version, "11") {
+		return "Big Sur"
+	} else if strings.Contains(mac_os_version, "10") {
+		return "Old as shit boiiii"
+	} else {
+		return "Couldn't get OS version"
+	}
+}
+
 func checkFusion() bool {
 	c := exec.Command("bash", "-c", "diskutil resetfusion | cat | awk '{print $1}' | sed -n '1 p'")
 
@@ -333,7 +357,7 @@ func getCPUCore(m model) (tea.Model, tea.Cmd) {
 }
 
 func getActivationStatus(m model) (tea.Model, tea.Cmd) {
-	activation_status_cmd := exec.Command("bash", "-c", "system_profiler SPHardwareDataType | sed -n '20 p'")
+	activation_status_cmd := exec.Command("bash", "-c", "chroot /Volumes/Macintosh\\ HD system_profiler SPHardwareDataType | sed -n '20 p'")
 	activation_status_info, err := activation_status_cmd.Output()
 
 	if checkError("Error getting activation status", err) {
@@ -345,22 +369,31 @@ func getActivationStatus(m model) (tea.Model, tea.Cmd) {
 }
 
 func disableAuthenticatedRoot(m model) (tea.Model, tea.Cmd) {
-	check_os := exec.Command("bash", "-c", "sw_vers | sed -n '2 p' | awk '{print $2}'")
-	check_os_info, err := check_os.Output()
-	if checkError("Error checking OS", err) {
-		return m, nil
-	}
-	if strings.Contains("13.", string(check_os_info[:])) {
+	os_version := checkMacOSVersion()
+	if os_version == "Ventura" {
+		m.command = "os confirmed to be ventura. if you're seeing this `m.command` failed to update later on in the function"
 		auth_root_disable := exec.Command("csrutil authenticated-root disable")
 		auth_root_disable_go, err := auth_root_disable.Output()
-		if checkError("Error disabling authenticated root", err) {
+		if err != nil {
+			fmt.Println("Error disabling authenticated-root", err, auth_root_disable_go)
 			return m, nil
 		}
-		m.command = "Authenticated root disabled. Reboot back into USB\n" + string(auth_root_disable_go[:])
+		m.command = "os confirmed to be ventura. auth-root is disabled, trying csrutil"
+		csrutil_disable := exec.Command("csrutil disable")
+		csrutil_go, err := csrutil_disable.Output()
+		if err != nil {
+			fmt.Println("Error disabling authenticated-root", err, csrutil_go)
+			return m, nil
+		}
+		if err != nil {
+			fmt.Println("Error disabling authenticated-root", err)
+			return m, nil
+		}
+		m.command = "Authenticated root disabled. Reboot back into USB\n"
 		m.commandType = "AUTH_ROOT"
 		return m, nil
 	}
-	m.command = "Not ventura. Disabling authenticated root not necessary"
+	m.command = os_version + "is not ventura. Disabling authenticated root not necessary"
 	m.commandType = "AUTH_ROOT"
 	return m, nil
 
