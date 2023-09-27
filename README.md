@@ -2,6 +2,8 @@
 
 specget is a portable tool designed for refurbishers to get all required specifications of an iMac or MacBook without having to create a User account. 
 
+
+
 ## Usage
 From terminal on a MacOS install USB:
 
@@ -45,3 +47,5 @@ The exact command may vary depending on if you gave your USB a name, just check 
  
 2. Run the `build.sh` script. I haven't looked at it in ages, it might be a shambles.
 
+## Dependancies
+**Powered by Bubbletea** https://github.com/charmbracelet/bubbletea
