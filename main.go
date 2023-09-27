@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"golang.org/x/exp/slices"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/exp/slices"
 )
 
 var (
@@ -22,7 +23,7 @@ var (
 	bodyStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#404040"))
 	warningStyle = lipgloss.NewStyle().
-		//Background(lipgloss.Color("#505059")).
+		// Background(lipgloss.Color("#505059")).
 		Foreground(lipgloss.Color("#a03000"))
 
 	quitStyle = lipgloss.NewStyle().
@@ -56,9 +57,9 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
-func checkError(error_string string, err error) bool {
+func checkError(errorString string, err error) bool {
 	if err != nil {
-		fmt.Println(error_string, err)
+		fmt.Println(errorString, err)
 		return true
 	}
 	return false
@@ -86,16 +87,15 @@ func checkDir(path string, searchterm string) bool {
 func checkM1() bool {
 	c := exec.Command("sysctl", "-n", "machdep.cpu.brand_string")
 
-	cpu_name_out, err := c.Output()
-
+	cpuNameOut, err := c.Output()
 	if err != nil {
 		fmt.Println("Error getting CPU: ", err)
 		return false
 	}
 
-	cpu_name := string(cpu_name_out[:])
+	cpuName := string(cpuNameOut[:])
 
-	if strings.Contains(cpu_name, " M1") {
+	if strings.Contains(cpuName, " M1") {
 		return true
 	}
 	return false
@@ -104,111 +104,113 @@ func checkM1() bool {
 func checkMacOSVersion() string {
 	c := exec.Command("bash", "-c", "sw_vers | sed -n '2 p' | awk '{print $2}'")
 
-	mac_os_version_out, err := c.Output()
+	macOsVersionOut, err := c.Output()
 	if err != nil {
 		fmt.Println("Error getting sw_vers", err)
 		return "ERROR"
 	}
 
-	mac_os_version := string(mac_os_version_out[:])
+	macOsVersion := string(macOsVersionOut[:])
 
-	if strings.Contains(mac_os_version, "13") {
+	if strings.Contains(macOsVersion, "13") {
 		return "Ventura"
-	} else if strings.Contains(mac_os_version, "12") {
+	} else if strings.Contains(macOsVersion, "12") {
 		return "Monterey"
-	} else if strings.Contains(mac_os_version, "11") {
+	} else if strings.Contains(macOsVersion, "11") {
 		return "Big Sur"
-	} else if strings.Contains(mac_os_version, "10") {
+	} else if strings.Contains(macOsVersion, "10") {
 		return "Old as shit boiiii"
-	} else {
-		return "Couldn't get OS version"
 	}
+	return "Couldn't get OS version"
 }
 
 func checkFusion() bool {
 	c := exec.Command("bash", "-c", "diskutil resetfusion | cat | awk '{print $1}' | sed -n '1 p'")
 
-	fusion_status_out, err := c.Output()
-
+	fusionStatusOut, err := c.Output()
 	if err != nil {
 		fmt.Println("Error getting fusion drive status: ", err)
 	}
 
-	fusion_status := string(fusion_status_out[:])
+	fusionStatus := string(fusionStatusOut[:])
 
-	if strings.Contains(fusion_status, "s internal disk devices must be solid-state") {
+	if strings.Contains(fusionStatus, "s internal disk devices must be solid-state") {
 		return false
 	}
 	return true
 }
 
 func getHDD(m model) (tea.Model, tea.Cmd) {
-	hdd_fusion_check := exec.Command("bash", "-c", "diskutil info /dev/disk2")
+	hddFusionCheck := exec.Command("bash", "-c", "diskutil info /dev/disk2")
 	// dev/disk0 being the default drive macOS is installed on
-	hdd_disk0 := exec.Command("bash", "-c", "diskutil info /dev/disk0 | grep \"Disk Size\" | awk '{print $3, $4, \"(\"substr($5, 2, 16)/1000/1000/1000, \"MB)\"}'")
+	hddDisk0 := exec.Command(
+		"bash",
+		"-c",
+		"diskutil info /dev/disk0 | grep \"Disk Size\" | awk '{print $3, $4, \"(\"substr($5, 2, 16)/1000/1000/1000, \"MB)\"}'",
+	)
 	// dev/disk2 being the default assignment a fusion drive gets. (Comprising of a disk0 SSD and a disk1 HDD for example)
-	hdd_disk2 := exec.Command("bash", "-c", "diskutil info /dev/disk2 | grep \"Disk Size\" | awk '{print $3, $4, \"(\"substr($5, 2, 16)/1000/1000/1000, \"MB)\"}'")
+	hddDisk2 := exec.Command(
+		"bash",
+		"-c",
+		"diskutil info /dev/disk2 | grep \"Disk Size\" | awk '{print $3, $4, \"(\"substr($5, 2, 16)/1000/1000/1000, \"MB)\"}'",
+	)
 
 	// Boring Go error handling
-	fusion_info_bytes, err := hdd_fusion_check.Output()
+	fusionInfoBytes, err := hddFusionCheck.Output()
 	if err != nil {
-		// Currently doesn't execute as it'll trigger on non-fusion machines
-		// fmt.Println("Error fusion! ", err)
+		fmt.Println("Error fusion! ", err)
 	}
-	hdd_info, err := hdd_disk0.Output()
+	hddInfo, err := hddDisk0.Output()
 	if err != nil {
 		fmt.Println("Error disk0!", err)
 	}
-	hdd_info2, err := hdd_disk2.Output()
+	hddInfo2, err := hddDisk2.Output()
 	if err != nil {
 		fmt.Println("Error disk2!", err)
 	}
 
 	// If "Fusion Drive" is found in the output of hdd_fusion_check, then print the disk size of /dev/disk2 (the default allocation
 	//  of a fusion drive), otherwise print the disk size of /dev/disk0
-	fusion_info_string := string(fusion_info_bytes[:])
-	if strings.Contains(fusion_info_string, "Fusion Drive:              Yes") {
-		m.command = bodyStyle.Render("\nDEVICE IS USING FUSION DRIVE\n/dev/disk2: ") + commandStyle.Render(string(hdd_info2[:]))
+	fusionInfoString := string(fusionInfoBytes[:])
+	if strings.Contains(fusionInfoString, "Fusion Drive:              Yes") {
+		m.command = bodyStyle.Render(
+			"\nDEVICE IS USING FUSION DRIVE\n/dev/disk2: ",
+		) + commandStyle.Render(
+			string(hddInfo2[:]),
+		)
 	} else {
-		// Otherwise if the drive isn't a fusion drive then whether or not it's an SSD, and what kind of protocol the drive is using
-		//  is found and displayed. The latter is important because a SATA SSD is weaker than a PCI-Expess (PCI-E) SSD. Just to confuse
-		//  matters further, NVMe drives are PCI-E. No we haven't used enough of the alphabet to convolude this yet. We haven't even
-		//  included M.2!
-
-		// too long;didn't give a shit:
 		//    SATA SSD = Slow SSD
 		//    PCIE SSD aka NVMe SSD = Fast SSD
-		hdd_info_string := string(hdd_info[:])
-		m.command = bodyStyle.Render("\n   /dev/disk0: ") + commandStyle.Render(hdd_info_string)
+		hddInfoString := string(hddInfo[:])
+		m.command = bodyStyle.Render("\n   /dev/disk0: ") + commandStyle.Render(hddInfoString)
 
-		hdd_is_solidstate_cmd := exec.Command("bash", "-c", "diskutil info /dev/disk0 | grep Solid")
-		hdd_is_solidstate, err := hdd_is_solidstate_cmd.Output()
-
+		hddIsSolidstateCmd := exec.Command("bash", "-c", "diskutil info /dev/disk0 | grep Solid")
+		hddIsSolidstate, err := hddIsSolidstateCmd.Output()
 		// Boring Go error handling
 		if err != nil {
 			fmt.Println("Error determing if drive is solid state: ", err)
 		}
-		is_solidstate := string(hdd_is_solidstate[:])
+		isSolidstate := string(hddIsSolidstate[:])
 
 		// No newline required as calling .Render on a string(<cmd_output>) will automatically add a newline at the
 		//   end of itself
-		if strings.Contains(is_solidstate, "Yes") {
+		if strings.Contains(isSolidstate, "Yes") {
 			m.command += "\n" + bodyStyle.Render("Is SSD: ") + commandStyle.Render("Yes")
 		} else {
 			m.command += "\n" + bodyStyle.Render("Is SSD: ") + commandStyle.Render("No")
 		}
 
-		hdd_protocol_cmd := exec.Command("bash", "-c", "diskutil info /dev/disk0 | grep Protocol | awk '{print $2}'")
-		hdd_protocol, err := hdd_protocol_cmd.Output()
+		hddProtocolCmd := exec.Command("bash", "-c", "diskutil info /dev/disk0 | grep Protocol | awk '{print $2}'")
+		hddProtocol, err := hddProtocolCmd.Output()
 		// Boring Go error handling
 		if err != nil {
 			fmt.Println("Error determing drive protocol: ", err)
 		}
-		hdd_protocol_string := string(hdd_protocol[:])
-		if strings.Contains(hdd_protocol_string, "Apple") {
-			hdd_protocol_string = "Apple Fabric"
+		hddProtocolString := string(hddProtocol[:])
+		if strings.Contains(hddProtocolString, "Apple") {
+			hddProtocolString = "Apple Fabric"
 		}
-		m.command += "\n" + bodyStyle.Render("Protocol: ") + commandStyle.Render(hdd_protocol_string)
+		m.command += "\n" + bodyStyle.Render("Protocol: ") + commandStyle.Render(hddProtocolString)
 
 	}
 
@@ -223,26 +225,30 @@ func getGPU(m model) (tea.Model, tea.Cmd) {
 		m.command, m.commandType = "M1 GPU", "GPU"
 		return m, nil
 	}
-	gpu_cmd := exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p'")
-	gpu_info, err := gpu_cmd.Output()
+	gpuCmd := exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep \"model\" | sed -n '1 p'")
+	gpuInfo, err := gpuCmd.Output()
 
 	if checkError("Error Getting GPU: ", err) {
 		return m, nil
 	}
 
-	command_raw := string(gpu_info[:])
-	m.command = strings.Split(strings.Split(command_raw, `<"`)[1], `">`)[0]
+	commandRaw := string(gpuInfo[:])
+	m.command = strings.Split(strings.Split(commandRaw, `<"`)[1], `">`)[0]
 
-	c2 := exec.Command("bash", "-c", "ioreg -rc IOPCIDevice | grep VRAM | awk '{print $5/1024\"GB\"}'")
-	gpuvram_info, err := c2.Output()
+	c2 := exec.Command(
+		"bash",
+		"-c",
+		"ioreg -rc IOPCIDevice | grep VRAM | awk '{print $5/1024\"GB\"}'",
+	)
+	gpuVramInfo, err := c2.Output()
 
 	// Boring Go error handling
-	if err != nil || len(string(gpuvram_info[:])) == 0 {
+	if err != nil || len(string(gpuVramInfo[:])) == 0 {
 		m.command += " (VRAM Unknown)"
 	}
 
-	command2_raw := string(gpuvram_info)
-	m.command += " " + command2_raw
+	command2Raw := string(gpuVramInfo)
+	m.command += " " + command2Raw
 
 	// m.command = command_splits[0]
 	m.commandType = "GPU"
@@ -251,27 +257,25 @@ func getGPU(m model) (tea.Model, tea.Cmd) {
 
 func getSerial(m model) (tea.Model, tea.Cmd) {
 	c := exec.Command("bash", "-c", "ioreg -w0 -l | grep PlatformSerial | awk '{print $4}'")
-	serial_no, err := c.Output()
-
+	serialNo, err := c.Output()
 	if err != nil {
 		fmt.Println("Error Serial Number:", err)
 		return m, nil
 	}
-	m.command = string(serial_no[:])
+	m.command = string(serialNo[:])
 	m.commandType = "SERIAL"
 	return m, nil
 }
 
 func getModel(m model) (tea.Model, tea.Cmd) {
 	c := exec.Command("bash", "-c", "ioreg -rk model | grep model | grep ',' | awk '{print $4}'")
-	model_no, err := c.Output()
-
+	modelNo, err := c.Output()
 	if err != nil {
 		fmt.Println("Error Model Number:", err)
 		return m, nil
 	}
 
-	m.command = string(model_no[:])
+	m.command = string(modelNo[:])
 	m.commandType = "MODEL"
 	return m, nil
 }
@@ -282,107 +286,126 @@ func getGPUCore(m model) (tea.Model, tea.Cmd) {
 		m.commandType = "NOTM1"
 		return m, nil
 	}
-	gpu_core_cmd := exec.Command("bash", "-c", "ioreg -rc IOGPU | grep core-count | awk '{print $4}'")
-	gpu_core_info, err := gpu_core_cmd.Output()
+	gpuCoreCmd := exec.Command(
+		"bash",
+		"-c",
+		"ioreg -rc IOGPU | grep core-count | awk '{print $4}'",
+	)
+	gpuCoreInfo, err := gpuCoreCmd.Output()
 
 	if checkError("Error Getting GPU Cores: ", err) {
 		return m, nil
 	}
 
-	m.command, m.commandType = string(gpu_core_info[:]), "GPUCORE"
+	m.command, m.commandType = string(gpuCoreInfo[:]), "GPUCORE"
 	return m, nil
 }
 
 func getRAM(m model) (tea.Model, tea.Cmd) {
 	c := exec.Command("bash", "-c", "sysctl hw.memsize | awk '{print $2/1024/1024/1024 \"GB\"}'")
-	ram_info, err := c.Output()
+	ramInfo, err := c.Output()
 
 	if checkError("Error Getting RAM:", err) {
 		return m, nil
 	}
 
-	m.command, m.commandType = (string(ram_info[:])), "RAM"
+	m.command, m.commandType = (string(ramInfo[:])), "RAM"
 	return m, nil
 }
 
 func getBattery(m model) (tea.Model, tea.Cmd) {
-	battery_count_cmd := exec.Command("bash", "-c", "chroot /Volumes/Macintosh\\ HD system_profiler SPPowerDataType | grep Count")
-	battery_count_info, err := battery_count_cmd.Output()
+	batteryCountCmd := exec.Command(
+		"bash",
+		"-c",
+		"chroot /Volumes/Macintosh\\ HD system_profiler SPPowerDataType | grep Count",
+	)
+	batteryCountInfo, err := batteryCountCmd.Output()
 	m.commandType = "BATTERY"
 
 	if checkError("Error getting battery count: ", err) {
 		return m, nil
 	}
 
-	m.command = string(battery_count_info[:])
+	m.command = string(batteryCountInfo[:])
 
-	battery_condition_cmd := exec.Command("bash", "-c", "chroot /Volumes/Macintosh\\ HD system_profiler SPPowerDataType | grep Condition")
-	battery_condition_info, err := battery_condition_cmd.Output()
+	batteryConditionCmd := exec.Command(
+		"bash",
+		"-c",
+		"chroot /Volumes/Macintosh\\ HD system_profiler SPPowerDataType | grep Condition",
+	)
+	batteryConditionInfo, err := batteryConditionCmd.Output()
 
 	if checkError("Error getting battery condition: ", err) {
 		return m, nil
 	}
 
-	m.command += "\n" + string(battery_condition_info[:])
+	m.command += "\n" + string(batteryConditionInfo[:])
 	return m, nil
 }
 
 func getCPU(m model) (tea.Model, tea.Cmd) {
-	cpu_cmd := exec.Command("sysctl", "-n", "machdep.cpu.brand_string")
-	cpu_info, err := cpu_cmd.Output()
+	cpuCmd := exec.Command("sysctl", "-n", "machdep.cpu.brand_string")
+	cpuInfo, err := cpuCmd.Output()
 
 	if checkError("Error Getting CPU: ", err) {
 		return m, nil
 	}
 
-	m.command, m.commandType = string(cpu_info[:]), "CPU"
+	m.command, m.commandType = string(cpuInfo[:]), "CPU"
 	return m, nil
 }
 
 func getCPUCore(m model) (tea.Model, tea.Cmd) {
-	if checkM1() != true {
+	if !checkM1() {
 		m.command = "This machine doesn't have an M1 chip"
 		m.commandType = "NOTM1"
 		return m, nil
 	}
-	cpu_core_cmd := exec.Command("sysctl", "-n", "machdep.cpu.core_count")
-	cpu_core_info, err := cpu_core_cmd.Output()
+	cpuCoreCmd := exec.Command("sysctl", "-n", "machdep.cpu.core_count")
+	cpuCoreInfo, err := cpuCoreCmd.Output()
 
 	if checkError("Error getting CPU core count: ", err) {
 		return m, nil
 	}
 
-	m.command, m.commandType = string(cpu_core_info[:]), "CPUCORE"
+	m.command, m.commandType = string(cpuCoreInfo[:]), "CPUCORE"
 	return m, nil
 }
 
 func getActivationStatus(m model) (tea.Model, tea.Cmd) {
-	activation_status_cmd := exec.Command("bash", "-c", "chroot /Volumes/Macintosh\\ HD system_profiler SPHardwareDataType | sed -n '20 p'")
-	activation_status_info, err := activation_status_cmd.Output()
+	activationStatusCmd := exec.Command(
+		"bash",
+		"-c",
+		"chroot /Volumes/Macintosh\\ HD system_profiler SPHardwareDataType | sed -n '20 p'",
+	)
+	activationStatusInfo, err := activationStatusCmd.Output()
 
 	if checkError("Error getting activation status", err) {
 		return m, nil
 	}
 
-	m.command, m.commandType = string(activation_status_info[:]), "ACTIVATION_STATUS"
+	m.command, m.commandType = string(activationStatusInfo[:]), "ACTIVATION_STATUS"
+	if m.command == "" {
+		m.command = "No Activation Label found in SPHardwareDataType"
+	}
 	return m, nil
 }
 
 func disableAuthenticatedRoot(m model) (tea.Model, tea.Cmd) {
-	os_version := checkMacOSVersion()
-	if os_version == "Ventura" {
-		m.command = "os confirmed to be ventura. if you're seeing this `m.command` failed to update later on in the function"
-		auth_root_disable := exec.Command("csrutil authenticated-root disable")
-		auth_root_disable_go, err := auth_root_disable.Output()
+	osVersion := checkMacOSVersion()
+	if osVersion == "Ventura" {
+		m.command = "os confirmed to be ventura.\n if you're seeing this `m.command` failed to update later on in the function"
+		authRootDisable := exec.Command("bash", "-c", "csrutil authenticated-root disable")
+		authRootDisableGo, err := authRootDisable.Output()
 		if err != nil {
-			fmt.Println("Error disabling authenticated-root", err, auth_root_disable_go)
+			fmt.Println("Error disabling authenticated-root", err, authRootDisableGo)
 			return m, nil
 		}
 		m.command = "os confirmed to be ventura. auth-root is disabled, trying csrutil"
-		csrutil_disable := exec.Command("csrutil disable")
-		csrutil_go, err := csrutil_disable.Output()
+		csrutilDisable := exec.Command("bash", "-c", "csrutil disable")
+		csrutilGo, err := csrutilDisable.Output()
 		if err != nil {
-			fmt.Println("Error disabling authenticated-root", err, csrutil_go)
+			fmt.Println("Error disabling authenticated-root", err, csrutilGo)
 			return m, nil
 		}
 		if err != nil {
@@ -393,10 +416,9 @@ func disableAuthenticatedRoot(m model) (tea.Model, tea.Cmd) {
 		m.commandType = "AUTH_ROOT"
 		return m, nil
 	}
-	m.command = os_version + "is not ventura. Disabling authenticated root not necessary"
+	m.command = osVersion + "is not ventura. Disabling authenticated root not necessary"
 	m.commandType = "AUTH_ROOT"
 	return m, nil
-
 }
 
 func formatDrive(m model, fs string) (tea.Model, tea.Cmd) {
@@ -442,36 +464,42 @@ func installOS(m model) (tea.Model, tea.Cmd) {
 		startOSInstall = `/Install\ macOS\ Monterey.app/Contents/Resources/startosinstall`
 	}
 	c := exec.Command(startOSInstall, "--agreetolicense", "--volume", `/Volumes/Macintosh\ HD/`)
-	c.Run()
-	install_os_info, err := c.Output()
-
+	err := c.Run()
+	if err != nil {
+		fmt.Println("Whoops! All fucked os!", err)
+	}
+	installOsInfo, err := c.Output()
 	if err != nil {
 		fmt.Println("Error Installing OS:", err)
 
 		return m, nil
 	}
 
-	m.command = string(install_os_info[:])
+	m.command = string(installOsInfo[:])
 	m.commandType = "OS"
 
 	return m, nil
 }
 
 func demoBatteryNew(m model) (tea.Model, tea.Cmd) {
-	c := exec.Command("bash", "-c", "ioreg -rk LegacyBatteryInfo | grep LegacyBatteryInfo | awk '{print $3}'")
-	demoBattery_raw, err := c.Output()
-
+	c := exec.Command(
+		"bash",
+		"-c",
+		"ioreg -rk LegacyBatteryInfo | grep LegacyBatteryInfo | awk '{print $3}'",
+	)
+	demoBatteryRaw, err := c.Output()
 	if err != nil {
 		fmt.Println("Demo battery fuck up")
 		return m, nil
 	}
 
-	m.command = string(demoBattery_raw[:])
+	m.command = string(demoBatteryRaw[:])
 	m.commandType = "DEMO"
 	return m, nil
 }
+
 func isFusionDrive(m model) (tea.Model, tea.Cmd) {
-	if checkFusion() == true {
+	if checkFusion() {
 		m.command = "No fusion drive"
 	} else {
 		m.command = "Has fusion drive"
@@ -480,30 +508,38 @@ func isFusionDrive(m model) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func testMenu_HDDWriteTest(m model) (tea.Model, tea.Cmd) {
-	write_test_cmd := exec.Command("bash", "-c", "dd if=/dev/zero of=/Volumes/Macintosh HD/tstFile bs=512k count=5000 | grep sec | awk '{print $1/ 1024/ 1024/ $5\"MB/sec\"}'")
-	write_test_info, err := write_test_cmd.Output()
+func testMenuHDDWriteTest(m model) (tea.Model, tea.Cmd) {
+	writeTestCmd := exec.Command(
+		"bash",
+		"-c",
+		"dd if=/dev/zero of=/Volumes/Macintosh HD/tstFile bs=512k count=5000 | grep sec | awk '{print $1/ 1024/ 1024/ $5\"MB/sec\"}'",
+	)
+	writeTestInfo, err := writeTestCmd.Output()
 	fmt.Println("HDD Write Test engaged")
 
 	if checkError("Error executing write test: ", err) {
 		return m, nil
 	}
 
-	m.command, m.commandType = string(write_test_info[:]), "TEST_WRITE"
+	m.command, m.commandType = string(writeTestInfo[:]), "TEST_WRITE"
 	fmt.Println("HDD Write Test completed")
 	return m, nil
 }
 
-func testMenu_HDDReadTest(m model) (tea.Model, tea.Cmd) {
-	read_test_cmd := exec.Command("bash", "-c", "dd if=/Volumes/Macintosh HD/tstfile of=/dev/null bs=512k count=5000 | grep sec | awk '{print $1/ 1024/ 1024 $5\"MB/sec\"}'")
-	read_test_info, err := read_test_cmd.Output()
+func testMenuHDDReadTest(m model) (tea.Model, tea.Cmd) {
+	readTestCmd := exec.Command(
+		"bash",
+		"-c",
+		"dd if=/Volumes/Macintosh HD/tstfile of=/dev/null bs=512k count=5000 | grep sec | awk '{print $1/ 1024/ 1024 $5\"MB/sec\"}'",
+	)
+	readTestInfo, err := readTestCmd.Output()
 	fmt.Println("HDD Read Test engaged")
 
 	if checkError("Error executing read test: ", err) {
 		return m, nil
 	}
 
-	m.command, m.commandType = string(read_test_info[:]), "TEST_READ"
+	m.command, m.commandType = string(readTestInfo[:]), "TEST_READ"
 	fmt.Println("HDD Read Test completed")
 	return m, nil
 }
@@ -564,7 +600,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.disclaimerShow = false
 			if m.testMenu {
 				m.testMenu = !m.testMenu
-				return testMenu_HDDWriteTest(m)
+				return testMenuHDDWriteTest(m)
 			}
 			return getHDD(m)
 		// GET MODEL NUMBER
@@ -583,7 +619,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.disclaimerShow = false
 			if m.testMenu {
 				m.testMenu = !m.testMenu
-				return testMenu_HDDReadTest(m)
+				return testMenuHDDReadTest(m)
 			}
 			return getRAM(m)
 		// SERIAL
@@ -657,18 +693,72 @@ func (m model) View() string {
 	if !m.commandPresent {
 		renderString += titleStyle.Render("Please enter a command")
 
-		renderString += "\n" + bodyStyle.Render("'a' for ") + commandStyle.Render("activation status ") + warningStyle.Render("OS Install Req.")
-		renderString += "\n" + bodyStyle.Render("'B' for ") + commandStyle.Render("battery info ") + warningStyle.Render("Macbook Only. OS Install Req.")
-		renderString += "\n" + bodyStyle.Render("'c' for ") + commandStyle.Render("cpu")
-		renderString += "\n" + bodyStyle.Render("'C' for ") + commandStyle.Render("cpu core ") + warningStyle.Render("M1 Only")
+		renderString += "\n" + bodyStyle.Render(
+			"'a' for ",
+		) + commandStyle.Render(
+			"activation status ",
+		) + warningStyle.Render(
+			"OS Install Req.",
+		)
+		renderString += "\n" + bodyStyle.Render(
+			"'B' for ",
+		) + commandStyle.Render(
+			"battery info ",
+		) + warningStyle.Render(
+			"Macbook Only. OS Install Req.",
+		)
+		renderString += "\n" + bodyStyle.Render(
+			"'c' for ",
+		) + commandStyle.Render(
+			"cpu",
+		)
+		renderString += "\n" + bodyStyle.Render(
+			"'C' for ",
+		) + commandStyle.Render(
+			"cpu core ",
+		) + warningStyle.Render(
+			"M1 Only",
+		)
 		renderString += "\n" + bodyStyle.Render("'r' for ") + commandStyle.Render("ram")
-		renderString += "\n" + bodyStyle.Render("'R' for ") + commandStyle.Render("disable authenticated root ") + warningStyle.Render("Ventura Only")
-		renderString += "\n" + bodyStyle.Render("'g' for ") + commandStyle.Render("gpu")
-		renderString += "\n" + bodyStyle.Render("'G' for ") + commandStyle.Render("gpu core ") + warningStyle.Render("M1 Only")
-		renderString += "\n" + bodyStyle.Render("'f' for ") + commandStyle.Render("fusion drive test")
-		renderString += "\n" + bodyStyle.Render("'h' for ") + commandStyle.Render("hdd")
-		renderString += "\n" + bodyStyle.Render("'s' for ") + commandStyle.Render("serial number")
-		renderString += "\n" + bodyStyle.Render("'m' for ") + commandStyle.Render("model reference")
+		renderString += "\n" + bodyStyle.Render(
+			"'R' for ",
+		) + commandStyle.Render(
+			"disable authenticated root ",
+		) + warningStyle.Render(
+			"Ventura Only",
+		)
+		renderString += "\n" + bodyStyle.Render(
+			"'g' for ",
+		) + commandStyle.Render(
+			"gpu",
+		)
+		renderString += "\n" + bodyStyle.Render(
+			"'G' for ",
+		) + commandStyle.Render(
+			"gpu core ",
+		) + warningStyle.Render(
+			"M1 Only",
+		)
+		renderString += "\n" + bodyStyle.Render(
+			"'f' for ",
+		) + commandStyle.Render(
+			"fusion drive test",
+		)
+		renderString += "\n" + bodyStyle.Render(
+			"'h' for ",
+		) + commandStyle.Render(
+			"hdd",
+		)
+		renderString += "\n" + bodyStyle.Render(
+			"'s' for ",
+		) + commandStyle.Render(
+			"serial number",
+		)
+		renderString += "\n" + bodyStyle.Render(
+			"'m' for ",
+		) + commandStyle.Render(
+			"model reference",
+		)
 		// renderString += "\n" + bodyStyle.Render("'o' for ") + commandStyle.Render("os install ") + warningStyle.Render("Coming Soon")
 		// renderString += "\n" + bodyStyle.Render("'p' for ") + commandStyle.Render("ping test")+ warningStyle.Render("NOT IMPLEMENTED")
 		// renderString += "\n" + bodyStyle.Render("'f' for ") + commandStyle.Render("Format Menu")
@@ -732,7 +822,7 @@ func (m model) View() string {
 		default:
 			renderString += bodyStyle.Render("Fucking uhhhhhh") + commandStyle.Render(" Idk B")
 		}
-		m.commandPresent = !m.commandPresent
+		m.commandPresent = false
 		if displayOptions {
 			renderString += "\n" + quitStyle.Render("[c]pu | [g]pu | [r]am | [h]dd | [b]ack to menu | [q]uit")
 		}
@@ -752,11 +842,15 @@ func (m model) View() string {
 	outputString := titleString + borderStyle.Render(renderString)
 	titleString, renderString = "", ""
 	return outputString
-
 }
 
 func main() {
-	m := model{commandPresent: false, disclaimerShow: true, formatMenu: false, testMenu: false}
+	m := model{
+		commandPresent: false,
+		disclaimerShow: true,
+		formatMenu:     false,
+		testMenu:       false,
+	}
 
 	if err := tea.NewProgram(m).Start(); err != nil {
 		fmt.Println("Error! ", err)
