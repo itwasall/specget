@@ -2,7 +2,7 @@
 
 specget is a portable tool designed for refurbishers to get all required specifications of an iMac or MacBook without having to create a User account. 
 
-
+# For acquiring battery information for Venutra/Sonoma, or for completely negating this applications existence please check the wiki!!
 
 ## Usage
 From terminal on a MacOS install USB:
